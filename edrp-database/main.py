@@ -6,8 +6,17 @@ from models import User
 from auth import hash_password, verify_password, create_access_token, get_current_user, get_db, require_admin
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 #Root endpoint to check if the backend is running
 @app.get("/")
