@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../services/api";
+import AuthCard from "../components/AuthCard";
+import "../styles/forms.css";
 
 function Register() {
   const [name, setName] = useState("");
@@ -11,22 +13,24 @@ function Register() {
 
   async function handleSubmit(event) {
     event.preventDefault();
-
     try {
       await registerUser(name, email, password);
-      navigate("/login"); // after successful registration, send them to log in
+      navigate("/login");
     } catch (err) {
-      // Your backend sends a 400 error with detail: "Email already registered"
       const message = err.response?.data?.detail || "Registration failed";
       setError(message);
     }
   }
 
   return (
-    <div>
-      <h2>Register</h2>
+    <AuthCard
+      title="Open a new file"
+      footer={
+        <>Already have an account? <Link to="/login">Log in</Link></>
+      }
+    >
       <form onSubmit={handleSubmit}>
-        <div>
+        <div className="form-group">
           <label>Name</label>
           <input
             type="text"
@@ -35,7 +39,7 @@ function Register() {
             required
           />
         </div>
-        <div>
+        <div className="form-group">
           <label>Email</label>
           <input
             type="email"
@@ -44,7 +48,7 @@ function Register() {
             required
           />
         </div>
-        <div>
+        <div className="form-group">
           <label>Password</label>
           <input
             type="password"
@@ -53,13 +57,10 @@ function Register() {
             required
           />
         </div>
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        <button type="submit">Create Account</button>
+        {error && <p className="form-error">{error}</p>}
+        <button type="submit" className="btn-primary">Create Account</button>
       </form>
-      <p>
-        Already have an account? <Link to="/login">Log in</Link>
-      </p>
-    </div>
+    </AuthCard>
   );
 }
 
