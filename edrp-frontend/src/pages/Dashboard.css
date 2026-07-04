@@ -1,0 +1,91 @@
+.dashboard-page {
+  min-height: 100vh;
+  background: var(--ink);
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-header__brand {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--line);
+}
+
+.dashboard-header .btn-ghost {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 8px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.dashboard-header .btn-ghost:hover {
+  border-color: var(--stamp-red);
+  color: var(--stamp-red);
+}
+
+.record-card {
+  max-width: 640px;
+  margin: 56px auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 40px 44px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+}
+
+.record-card__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.record-card__title {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 28px;
+}
+
+.record-field {
+  display: flex;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.record-field:last-of-type {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+
+.record-field__label {
+  width: 140px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.record-field__value {
+  font-size: 15px;
+  color: var(--text-dark);
+}
