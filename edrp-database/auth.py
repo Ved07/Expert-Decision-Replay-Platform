@@ -7,7 +7,10 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import User
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def hash_password(plain_password: str) -> str:
     # bcrypt works with bytes, not strings, so we encode first
@@ -24,9 +27,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 
-# In a real project this comes from an environment variable, never hardcoded.
-# For now, just use any long random string.
-SECRET_KEY = "change-this-to-something-random-later"
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_MINUTES = 60 * 24  # token valid for 24 hours
 

@@ -1,11 +1,20 @@
-from sqlalchemy import create_engine
+import os
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# This is the "address" of our database. For SQLite, it's just a file
-# on disk called edrp.db, which will be created automatically.
-DATABASE_URL = "sqlite:///./edrp.db"
+load_dotenv()  # reads .env and loads DB_PASSWORD, JWT_SECRET_KEY, etc.
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = URL.create(
+    drivername="postgresql+psycopg2",
+    username="postgres",
+    password=os.getenv("DB_PASSWORD"),
+    host="localhost",
+    port=5432,
+    database="edrp_db",
+)
+
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

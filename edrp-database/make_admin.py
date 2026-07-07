@@ -3,14 +3,17 @@ from models import User
 
 db = SessionLocal()
 
-# change this to your actual email
-user = db.query(User).filter(User.email == "ved@example.com").first()
+# Update these three lines for each user you want to promote, then re-run the script
+email = "admin@example.com"
+new_role = "Administrator"   # Employee / Reviewer / Manager / Administrator
+
+user = db.query(User).filter(User.email == email).first()
 
 if user:
-    user.role = "Administrator"
+    user.role = new_role
     db.commit()
-    print(f"✅ {user.name} is now an Administrator")
+    print(f"✅ {user.name} ({user.email}) is now a {new_role}")
 else:
-    print("❌ No user found with that email")
+    print(f"❌ No user found with email {email}")
 
 db.close()
