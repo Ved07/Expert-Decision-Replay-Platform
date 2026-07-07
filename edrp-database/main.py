@@ -7,6 +7,8 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+from models import Team
+from schemas import TeamCreate, TeamOut
 
 app = FastAPI()
 
@@ -30,7 +32,7 @@ def read_root():
 
 
 # Create the database tables if they don't exist
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 
 # User management endpoints
@@ -96,3 +98,35 @@ def update_role(user_id: int, new_role: str, admin_user: User = Depends(require_
     db.commit()
     db.refresh(user)
     return {"id": user.id, "name": user.name, "role": user.role}
+
+
+# Team management endpoints
+@app.post("/teams", response_model=TeamOut)
+def create_team(team: TeamCreate, admin_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    new_team = Team(name=team.name, manager_id=team.manager_id)
+    db.add(new_team)
+    db.commit()
+    db.refresh(new_team)
+    return new_team
+
+# Admin-only endpoint to list all teams
+@app.get("/teams", response_model=List[TeamOut])
+def list_teams(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return db.query(Team).all()
+
+
+# Admin-only endpoint to assign a user to a team
+@app.patch("/users/{user_id}/team")
+def assign_user_to_team(user_id: int, team_id: int, admin_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    user.team_id = team_id
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "name": user.name, "team_id": user.team_id}
