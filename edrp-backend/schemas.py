@@ -78,3 +78,14 @@ class AlternativeOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Define a schema for attachment output
+class AttachmentOut(BaseModel):
+    id: int
+    decision_id: int
+    original_filename: str
+    uploaded_by: int
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -71,15 +71,15 @@ class Alternative(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-# # Define the Attachment model
-# class Attachment(Base):
-#     __tablename__ = "attachments"
+# Define the Attachment model
+class Attachment(Base):
+    __tablename__ = "attachments"
 
-#     id = Column(Integer, primary_key=True, index=True)
-#     decision_id = Column(Integer, ForeignKey("decisions.id"), nullable=False)
+    id = Column(Integer, primary_key=True, index=True)
+    decision_id = Column(Integer, ForeignKey("decisions.id"), nullable=False)
 
-#     original_filename = Column(String, nullable=False)
-#     stored_filename = Column(String, nullable=False, unique=True)
-#     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    original_filename = Column(String, nullable=False)
+    stored_filename = Column(String, nullable=False, unique=True)
+    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-#     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
