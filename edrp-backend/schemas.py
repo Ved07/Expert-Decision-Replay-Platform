@@ -89,3 +89,19 @@ class AttachmentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Define a schema for comment creation
+class CommentCreate(BaseModel):
+    content: str
+
+# Define a schema for comment output
+class CommentOut(BaseModel):
+    id: int
+    decision_id: int
+    author_id: int
+    author_name: str
+    content: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

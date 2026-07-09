@@ -83,3 +83,15 @@ class Attachment(Base):
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# Define the Comment model
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    decision_id = Column(Integer, ForeignKey("decisions.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    content = Column(Text, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
