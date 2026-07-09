@@ -9,6 +9,8 @@ from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from models import Team
 from schemas import TeamCreate, TeamOut
+from models import Decision, DecisionStatus
+from schemas import DecisionCreate, DecisionUpdate, DecisionOut
 
 app = FastAPI()
 
@@ -130,3 +132,79 @@ def assign_user_to_team(user_id: int, team_id: int, admin_user: User = Depends(r
     db.commit()
     db.refresh(user)
     return {"id": user.id, "name": user.name, "team_id": user.team_id}
+
+
+
+# Decision management endpoints
+@app.post("/decisions", response_model=DecisionOut, status_code=201)
+def create_decision(
+    payload: DecisionCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    new_decision = Decision(
+        title=payload.title,
+        problem_statement=payload.problem_statement,
+        created_by=current_user.id,   # taken from the token, not from the client
+    )
+    db.add(new_decision)
+    db.commit()
+    db.refresh(new_decision)
+    return new_decision
+
+# Admin-only endpoint to list all decisions
+@app.get("/decisions", response_model=List[DecisionOut])
+def list_decisions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return db.query(Decision).order_by(Decision.created_at.desc()).all()
+
+
+@app.get("/decisions/{decision_id}", response_model=DecisionOut)
+def get_decision(
+    decision_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    return decision
+
+
+# Admin-only endpoint to update a decision
+@app.patch("/decisions/{decision_id}", response_model=DecisionOut)
+def update_decision(
+    decision_id: int,
+    payload: DecisionUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    # Only update fields the client actually sent — anything left out stays unchanged
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(decision, field, value)
+
+    db.commit()
+    db.refresh(decision)
+    return decision
+
+# Admin-only endpoint to delete a decision
+@app.delete("/decisions/{decision_id}", status_code=204)
+def delete_decision(
+    decision_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    db.delete(decision)
+    db.commit()
+    return None
