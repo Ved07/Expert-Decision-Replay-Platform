@@ -11,6 +11,8 @@ from models import Team
 from schemas import TeamCreate, TeamOut
 from models import Decision, DecisionStatus
 from schemas import DecisionCreate, DecisionUpdate, DecisionOut
+from models import Alternative
+from schemas import AlternativeCreate, AlternativeOut
 
 app = FastAPI()
 
@@ -208,3 +210,37 @@ def delete_decision(
     db.delete(decision)
     db.commit()
     return None
+
+
+
+# Alternative management endpoints
+@app.post("/decisions/{decision_id}/alternatives", response_model=AlternativeOut, status_code=201)
+def create_alternative(
+    decision_id: int,
+    payload: AlternativeCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Confirm the parent decision actually exists before attaching anything to it
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    new_alt = Alternative(decision_id=decision_id, **payload.model_dump())
+    db.add(new_alt)
+    db.commit()
+    db.refresh(new_alt)
+    return new_alt
+
+# Admin-only endpoint to list all alternatives for a specific decision
+@app.get("/decisions/{decision_id}/alternatives", response_model=List[AlternativeOut])
+def list_alternatives(
+    decision_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    return db.query(Alternative).filter(Alternative.decision_id == decision_id).all()

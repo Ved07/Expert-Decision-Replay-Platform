@@ -54,4 +54,27 @@ class DecisionOut(BaseModel):
 
     class Config:
         from_attributes = True
-        
+
+# Define a schema for alternative creation
+class AlternativeCreate(BaseModel):
+    title: str
+    pros: str | None = None
+    cons: str | None = None
+    estimated_cost: str | None = None
+    feasibility_notes: str | None = None
+    risk_notes: str | None = None
+
+# Define a schema for alternative output
+class AlternativeOut(BaseModel):
+    id: int
+    decision_id: int
+    title: str
+    pros: str | None
+    cons: str | None
+    estimated_cost: str | None
+    feasibility_notes: str | None
+    risk_notes: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
