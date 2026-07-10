@@ -2,6 +2,10 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import DecisionList from "./pages/DecisionList";
+import CreateDecision from "./pages/CreateDecision";
+import DecisionDetail from "./pages/DecisionDetail";
+
 
 function App() {
   return (
@@ -11,8 +15,12 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/" element={<Navigate to="/login" />} />
+      <Route path="/decisions/new" element={<CreateDecision />} />
+      <Route path="/decisions/:id" element={<DecisionDetail />} />
+      <Route path="/decisions" element={<DecisionList />} />
       </Routes>
     </div>
+    
   );
 }
 

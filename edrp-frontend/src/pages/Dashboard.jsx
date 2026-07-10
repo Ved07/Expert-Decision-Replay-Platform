@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { getCurrentUser, logout } from "../services/api";
 import RoleStamp from "../components/RoleStamp";
 import "./Dashboard.css";
+import { Link } from "react-router-dom";
 
 function Dashboard() {
   const [user, setUser] = useState(null);
@@ -50,6 +51,9 @@ function Dashboard() {
             <span className="record-field__label">Role</span>
             <span className="record-field__value"><RoleStamp role={user.role} /></span>
           </div>
+          <Link to="/decisions" className="btn-primary" style={{ display: "inline-block", textAlign: "center", textDecoration: "none", marginTop: 8 }}>
+  View Decisions
+</Link>
         </div>
       )}
     </div>

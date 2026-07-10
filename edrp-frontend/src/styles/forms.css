@@ -56,3 +56,22 @@
   color: var(--stamp-red);
   margin: -6px 0 16px;
 }
+
+.form-group textarea {
+  width: 100%;
+  padding: 11px 12px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-dark);
+  background: #fffdf9;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-group textarea:focus {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(176, 141, 87, 0.2);
+}

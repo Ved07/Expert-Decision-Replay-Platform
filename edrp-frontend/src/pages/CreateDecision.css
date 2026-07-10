@@ -1,0 +1,10 @@
+.create-decision-page {
+  min-height: 100vh;
+  background: var(--ink);
+}
+
+.create-decision-container {
+  max-width: 640px;
+  margin: 48px auto;
+  padding: 0 24px;
+}
