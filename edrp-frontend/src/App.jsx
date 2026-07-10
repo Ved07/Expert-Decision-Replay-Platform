@@ -5,7 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import DecisionList from "./pages/DecisionList";
 import CreateDecision from "./pages/CreateDecision";
 import DecisionDetail from "./pages/DecisionDetail";
-
+import Landing from "./pages/Landing";
 
 function App() {
   return (
@@ -14,7 +14,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<Landing />} />
       <Route path="/decisions/new" element={<CreateDecision />} />
       <Route path="/decisions/:id" element={<DecisionDetail />} />
       <Route path="/decisions" element={<DecisionList />} />
