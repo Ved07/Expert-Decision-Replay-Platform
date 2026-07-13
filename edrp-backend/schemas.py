@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from models import DecisionStatus
+from models import ApprovalDecision
 
 # Define your Pydantic schemas here
 class UserCreate(BaseModel):
@@ -102,6 +103,25 @@ class CommentOut(BaseModel):
     author_name: str
     content: str
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Define a schema for approval creation
+class ApprovalCreate(BaseModel):
+    outcome: ApprovalDecision
+    comments: str | None = None
+
+# Define a schema for approval output
+class ApprovalOut(BaseModel):
+    id: int
+    decision_id: int
+    reviewer_id: int
+    reviewer_name: str
+    outcome: ApprovalDecision
+    comments: str | None
+    reviewed_at: datetime
 
     class Config:
         from_attributes = True

@@ -95,3 +95,26 @@ class Comment(Base):
     content = Column(Text, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# Define the Approval model
+class ApprovalDecision(str, enum.Enum):
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+
+# Define the Approval model
+class Approval(Base):
+    __tablename__ = "approvals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    decision_id = Column(Integer, ForeignKey("decisions.id"), nullable=False)
+    reviewer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    outcome = Column(SQLEnum(ApprovalDecision), nullable=False)
+    comments = Column(Text, nullable=True)
+
+    reviewed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class ApprovalDecision(str, enum.Enum):
+    APPROVED = "Approved"
+    REJECTED = "Rejected"
+    ESCALATED = "Escalated"

@@ -26,22 +26,20 @@ function DecisionDetail() {
   const [newComment, setNewComment] = useState("");
   const [error, setError] = useState("");
 
-  async function loadEverything() {
-    try {
-      const [decisionData, altData, attachData, commentData] = await Promise.all([
-        getDecision(id),
-        getAlternatives(id),
-        getAttachments(id),
-        getComments(id),
-      ]);
-      setDecision(decisionData);
-      setAlternatives(altData);
-      setAttachments(attachData);
-      setComments(commentData);
-    } catch (err) {
-      setError("Could not load this decision.");
-    }
+async function loadEverything() {
+  try {
+    const [decisionData, altData, attachData, commentData] = await Promise.all([
+      getDecision(id), getAlternatives(id), getAttachments(id), getComments(id),
+    ]);
+    setDecision(decisionData);
+    setAlternatives(altData);
+    setAttachments(attachData);
+    setComments(commentData);
+    setError(""); // clear any previous error on a successful reload
+  } catch (err) {
+    setError(err.friendlyMessage);
   }
+}
 
   useEffect(() => {
     loadEverything();
@@ -49,50 +47,62 @@ function DecisionDetail() {
 
 
 
-  async function handleAddAlternative(event) {
+async function handleAddAlternative(event) {
   event.preventDefault();
-  await createAlternative(id, {
-    title: altTitle,
-    pros: altPros || null,
-    cons: altCons || null,
-    estimated_cost: altCost || null,
-    feasibility_notes: altFeasibility || null,
-    risk_notes: altRisk || null,
-  });
-
-  // Reset the form and hide it
-  setAltTitle("");
-  setAltPros("");
-  setAltCons("");
-  setAltCost("");
-  setAltFeasibility("");
-  setAltRisk("");
-  setShowAltForm(false);
-
-  loadEverything();
+  try {
+    await createAlternative(id, {
+      title: altTitle,
+      pros: altPros || null,
+      cons: altCons || null,
+      estimated_cost: altCost || null,
+      feasibility_notes: altFeasibility || null,
+      risk_notes: altRisk || null,
+    });
+    setAltTitle("");
+    setAltPros("");
+    setAltCons("");
+    setAltCost("");
+    setAltFeasibility("");
+    setAltRisk("");
+    setShowAltForm(false);
+    loadEverything();
+  } catch (err) {
+    setError(err.friendlyMessage);
+  }
 }
 
 async function handleDeleteAttachment(attachmentId) {
-  await deleteAttachment(attachmentId);
-  loadEverything();
+  try {
+    await deleteAttachment(attachmentId);
+    loadEverything();
+  } catch (err) {
+    setError(err.friendlyMessage);
+  }
 }
   async function handleCommentSubmit(event) {
-    event.preventDefault();
-    if (!newComment.trim()) return;
+  event.preventDefault();
+  if (!newComment.trim()) return;
+  try {
     await postComment(id, newComment);
     setNewComment("");
-    loadEverything(); // refresh the comment list to include the new one
+    loadEverything();
+  } catch (err) {
+    setError(err.friendlyMessage);
   }
+}
 
-  async function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
     await uploadAttachment(id, file);
     loadEverything();
+  } catch (err) {
+    setError(err.friendlyMessage);
   }
+}
 
-  if (error) return <p className="form-error" style={{ padding: 40 }}>{error}</p>;
-  if (!decision) return <p style={{ padding: 40, color: "var(--line)" }}>Loading case file...</p>;
+if (!decision && !error) return <p style={{ padding: 40, color: "var(--line)" }}>Loading case file...</p>;
 
   return (
     <div className="decision-detail-page">
@@ -102,7 +112,12 @@ async function handleDeleteAttachment(attachmentId) {
           Back to Decisions
         </button>
       </header>
-
+      {error && (
+          <p className="form-error" style={{ textAlign: "center", padding: "12px 0", margin: 0 }}>
+            {error}
+          </p>
+        )}
+      {decision && (
       <div className="decision-detail-container">
 
         {/* ---- Main decision card ---- */}
@@ -114,7 +129,7 @@ async function handleDeleteAttachment(attachmentId) {
           <h1 className="record-card__title">{decision.title}</h1>
           <p className="decision-detail__problem">{decision.problem_statement}</p>
         </div>
-
+        
         {/* ---- Alternatives ---- */}
         <section className="detail-section">
         <div className="detail-section__header">
@@ -244,7 +259,9 @@ async function handleDeleteAttachment(attachmentId) {
         </section>
 
       </div>
+      )}
     </div>
+    
   );
 }
 

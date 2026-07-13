@@ -19,6 +19,8 @@ from fastapi import UploadFile, File
 from fastapi.responses import FileResponse
 from models import Attachment
 from schemas import AttachmentOut
+from models import Approval, ApprovalDecision, DecisionStatus
+from schemas import ApprovalCreate, ApprovalOut
 
 app = FastAPI()
 
@@ -406,20 +408,130 @@ def list_comments(
         for c in comments
     ]
 
-# # Admin-only endpoint to delete a specific comment 
-# @app.delete("/comments/{comment_id}", status_code=204)
-# def delete_comment(
-#     comment_id: int,
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     comment = db.query(Comment).filter(Comment.id == comment_id).first()
-#     if not comment:
-#         raise HTTPException(status_code=404, detail="Comment not found")
 
-#     if comment.author_id != current_user.id and current_user.role != "Administrator":
-#         raise HTTPException(status_code=403, detail="You can only delete your own comments")
+APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"]
 
-#     db.delete(comment)
-#     db.commit()
-#     return None
+
+def get_next_required_role(decision_id: int, db: Session) -> str | None:
+    """
+    Looks at the approval history for a decision and figures out which
+    role needs to review it next.
+
+    Returns:
+    - A role name (e.g. "Manager") if that level still needs to review it
+    - None if the decision has either been rejected, or has passed
+      through every level (fully approved)
+    """
+    approvals = (
+        db.query(Approval)
+        .filter(Approval.decision_id == decision_id)
+        .order_by(Approval.reviewed_at.asc())
+        .all()
+    )
+
+    for approval in approvals:
+        if approval.outcome == ApprovalDecision.REJECTED:
+            return None  # rejected — no further review needed, it's finished
+
+    # Count how many levels have been passed (approved or escalated past)
+    levels_passed = len(approvals)
+
+    if levels_passed >= len(APPROVAL_LEVELS):
+        return None  # every level has signed off — fully approved
+
+    return APPROVAL_LEVELS[levels_passed]
+
+# Endpoint to submit an approval for a decision
+@app.post("/decisions/{decision_id}/approvals", response_model=ApprovalOut, status_code=201)
+def review_decision(
+    decision_id: int,
+    payload: ApprovalCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    next_required_role = get_next_required_role(decision_id, db)
+
+    if next_required_role is None:
+        raise HTTPException(
+            status_code=400,
+            detail="This decision has already been fully reviewed (approved or rejected).",
+        )
+
+    if current_user.role != next_required_role:
+        raise HTTPException(
+            status_code=403,
+            detail=f"This decision currently requires review by a {next_required_role}, not a {current_user.role}.",
+        )
+
+    new_approval = Approval(
+        decision_id=decision_id,
+        reviewer_id=current_user.id,
+        outcome=payload.outcome,
+        comments=payload.comments,
+    )
+    db.add(new_approval)
+
+    # Figure out the decision's new overall status based on what happens next
+    if payload.outcome == ApprovalDecision.REJECTED:
+        decision.status = DecisionStatus.REJECTED
+    else:
+        # Re-check: after adding this approval, is every level now done?
+        remaining_role = get_next_required_role(decision_id, db)
+        # (the current approval isn't committed yet, so we account for it manually)
+        levels_passed_after_this = len(
+            db.query(Approval).filter(Approval.decision_id == decision_id).all()
+        ) + 1
+        if levels_passed_after_this >= len(APPROVAL_LEVELS):
+            decision.status = DecisionStatus.APPROVED
+        else:
+            decision.status = DecisionStatus.UNDER_REVIEW
+
+    db.commit()
+    db.refresh(new_approval)
+
+    return ApprovalOut(
+        id=new_approval.id,
+        decision_id=new_approval.decision_id,
+        reviewer_id=new_approval.reviewer_id,
+        reviewer_name=current_user.name,
+        outcome=new_approval.outcome,
+        comments=new_approval.comments,
+        reviewed_at=new_approval.reviewed_at,
+    )
+
+# Admin-only endpoint to list all approvals for a specific decision
+@app.get("/decisions/{decision_id}/approvals", response_model=List[ApprovalOut])
+def list_approvals(
+    decision_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    approvals = (
+        db.query(Approval)
+        .filter(Approval.decision_id == decision_id)
+        .order_by(Approval.reviewed_at.asc())
+        .all()
+    )
+
+    reviewer_ids = {a.reviewer_id for a in approvals}
+    reviewers = db.query(User).filter(User.id.in_(reviewer_ids)).all()
+    reviewer_names = {r.id: r.name for r in reviewers}
+
+    return [
+        ApprovalOut(
+            id=a.id,
+            decision_id=a.decision_id,
+            reviewer_id=a.reviewer_id,
+            reviewer_name=reviewer_names.get(a.reviewer_id, "Unknown"),
+            outcome=a.outcome,
+            comments=a.comments,
+            reviewed_at=a.reviewed_at,
+        )
+        for a in approvals
+    ]
+
+
