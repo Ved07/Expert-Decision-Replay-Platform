@@ -154,3 +154,17 @@ export async function postComment(decisionId, content) {
   const response = await apiClient.post(`/decisions/${decisionId}/comments`, { content });
   return response.data;
 }
+
+
+export async function getApprovals(decisionId) {
+  const response = await apiClient.get(`/decisions/${decisionId}/approvals`);
+  return response.data;
+}
+
+export async function submitApproval(decisionId, outcome, comments) {
+  const response = await apiClient.post(`/decisions/${decisionId}/approvals`, {
+    outcome,
+    comments: comments || null,
+  });
+  return response.data;
+}

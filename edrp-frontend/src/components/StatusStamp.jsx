@@ -11,6 +11,7 @@ const STATUS_STYLES = {
   Approved: { color: "var(--stamp-green)", label: "APPROVED" },
   Rejected: { color: "var(--stamp-red)", label: "REJECTED" },
   Archived: { color: "var(--text-muted)", label: "ARCHIVED" },
+  Escalated: { color: "var(--brass)", label: "ESCALATED" },
 };
 
 function StatusStamp({ value }) {
