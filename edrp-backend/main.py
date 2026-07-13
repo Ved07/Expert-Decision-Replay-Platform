@@ -21,6 +21,7 @@ from models import Attachment
 from schemas import AttachmentOut
 from models import Approval, ApprovalDecision, DecisionStatus
 from schemas import ApprovalCreate, ApprovalOut
+from sqlalchemy import func as sqlfunc
 
 app = FastAPI()
 
@@ -170,6 +171,67 @@ def list_decisions(
 ):
     return db.query(Decision).order_by(Decision.created_at.desc()).all()
 
+
+
+
+# Endpoints to get decisions relevant to the current user
+@app.get("/decisions/mine", response_model=List[DecisionOut])
+def get_my_decisions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(Decision)
+        .filter(Decision.created_by == current_user.id)
+        .order_by(Decision.created_at.desc())
+        .all()
+    )
+
+# Endpoint to get decisions that are pending review for the current user
+@app.get("/decisions/pending-review", response_model=List[DecisionOut])
+def get_pending_review_decisions(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if current_user.role not in ("Reviewer", "Manager", "Administrator"):
+        return []  # Employees never have decisions "pending their review"
+
+    under_review = (
+        db.query(Decision)
+        .filter(Decision.status == DecisionStatus.UNDER_REVIEW)
+        .all()
+    )
+
+    # Only include decisions where it's genuinely THIS user's turn
+    pending = [
+        d for d in under_review
+        if get_next_required_role(d.id, db) == current_user.role
+    ]
+    return pending
+
+
+# Admin-only endpoint to get overall statistics about the system
+@app.get("/admin/stats")
+def get_admin_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    total_users = db.query(User).count()
+    total_decisions = db.query(Decision).count()
+    total_teams = db.query(Team).count()
+
+    status_counts = (
+        db.query(Decision.status, sqlfunc.count(Decision.id))
+        .group_by(Decision.status)
+        .all()
+    )
+
+    return {
+        "total_users": total_users,
+        "total_decisions": total_decisions,
+        "total_teams": total_teams,
+        "decisions_by_status": {status.value: count for status, count in status_counts},
+    }
 
 @app.get("/decisions/{decision_id}", response_model=DecisionOut)
 def get_decision(
@@ -533,39 +595,3 @@ def list_approvals(
         )
         for a in approvals
     ]
-
-
-# # Endpoints to get decisions relevant to the current user
-# @app.get("/decisions/mine", response_model=List[DecisionOut])
-# def get_my_decisions(
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     return (
-#         db.query(Decision)
-#         .filter(Decision.created_by == current_user.id)
-#         .order_by(Decision.created_at.desc())
-#         .all()
-#     )
-
-# # Endpoint to get decisions that are pending review for the current user
-# @app.get("/decisions/pending-review", response_model=List[DecisionOut])
-# def get_pending_review_decisions(
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db),
-# ):
-#     if current_user.role not in ("Reviewer", "Manager", "Administrator"):
-#         return []  # Employees never have decisions "pending their review"
-
-#     under_review = (
-#         db.query(Decision)
-#         .filter(Decision.status == DecisionStatus.UNDER_REVIEW)
-#         .all()
-#     )
-
-#     # Only include decisions where it's genuinely THIS user's turn
-#     pending = [
-#         d for d in under_review
-#         if get_next_required_role(d.id, db) == current_user.role
-#     ]
-#     return pending

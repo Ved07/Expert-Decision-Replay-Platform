@@ -168,3 +168,18 @@ export async function submitApproval(decisionId, outcome, comments) {
   });
   return response.data;
 }
+
+export async function getMyDecisions() {
+  const response = await apiClient.get("/decisions/mine");
+  return response.data;
+}
+
+export async function getPendingReviewDecisions() {
+  const response = await apiClient.get("/decisions/pending-review");
+  return response.data;
+}
+
+export async function getAdminStats() {
+  const response = await apiClient.get("/admin/stats");
+  return response.data;
+}
