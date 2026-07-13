@@ -535,3 +535,37 @@ def list_approvals(
     ]
 
 
+# # Endpoints to get decisions relevant to the current user
+# @app.get("/decisions/mine", response_model=List[DecisionOut])
+# def get_my_decisions(
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     return (
+#         db.query(Decision)
+#         .filter(Decision.created_by == current_user.id)
+#         .order_by(Decision.created_at.desc())
+#         .all()
+#     )
+
+# # Endpoint to get decisions that are pending review for the current user
+# @app.get("/decisions/pending-review", response_model=List[DecisionOut])
+# def get_pending_review_decisions(
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db),
+# ):
+#     if current_user.role not in ("Reviewer", "Manager", "Administrator"):
+#         return []  # Employees never have decisions "pending their review"
+
+#     under_review = (
+#         db.query(Decision)
+#         .filter(Decision.status == DecisionStatus.UNDER_REVIEW)
+#         .all()
+#     )
+
+#     # Only include decisions where it's genuinely THIS user's turn
+#     pending = [
+#         d for d in under_review
+#         if get_next_required_role(d.id, db) == current_user.role
+#     ]
+#     return pending

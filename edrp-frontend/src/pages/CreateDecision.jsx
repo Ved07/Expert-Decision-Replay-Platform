@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { createDecision } from "../services/api";
+import { useNavigate } from "react-router-dom";
 import "../styles/forms.css";
 import "./CreateDecision.css";
+import AppHeader from "../components/AppHeader";
 
 function CreateDecision() {
   const [title, setTitle] = useState("");
@@ -22,12 +23,7 @@ function CreateDecision() {
 
   return (
     <div className="create-decision-page">
-      <header className="dashboard-header">
-        <span className="dashboard-header__brand">Expert Decision Replay Platform</span>
-        <button className="btn-ghost" onClick={() => navigate("/decisions")}>
-          Cancel
-        </button>
-      </header>
+     <AppHeader backTo="/decisions" backLabel="Cancel" />
 
       <div className="create-decision-container">
         <div className="record-card">

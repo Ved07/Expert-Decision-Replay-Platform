@@ -8,6 +8,7 @@ import {
 } from "../services/api";
 import StatusStamp from "../components/StatusStamp";
 import "./DecisionDetail.css";
+import AppHeader from "../components/AppHeader";
 
 const APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"];
 
@@ -140,12 +141,7 @@ function DecisionDetail() {
 
   return (
     <div className="decision-detail-page">
-      <header className="dashboard-header">
-        <span className="dashboard-header__brand">Expert Decision Replay Platform</span>
-        <button className="btn-ghost" onClick={() => navigate("/decisions")}>
-          Back to Decisions
-        </button>
-      </header>
+     <AppHeader backTo="/decisions" backLabel="Back to Decisions" />
 
       {error && (
         <p className="form-error" style={{ textAlign: "center", padding: "12px 0", margin: 0 }}>

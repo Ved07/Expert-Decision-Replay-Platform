@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getDecisions } from "../services/api";
 import StatusStamp from "../components/StatusStamp";
+import AppHeader from "../components/AppHeader";
 import "./DecisionList.css";
 
 function DecisionList() {
   const [decisions, setDecisions] = useState([]);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetchDecisions() {
@@ -15,7 +15,7 @@ function DecisionList() {
         const data = await getDecisions();
         setDecisions(data);
       } catch (err) {
-        setError("Could not load decisions. Please log in again.");
+        setError(err.friendlyMessage || "Could not load decisions.");
       }
     }
     fetchDecisions();
@@ -23,16 +23,18 @@ function DecisionList() {
 
   return (
     <div className="decision-list-page">
-      <header className="dashboard-header">
-        <span className="dashboard-header__brand">Expert Decision Replay Platform</span>
-        <button className="btn-ghost" onClick={() => navigate("/decisions/new")}>
-          + New Decision
-        </button>
-      </header>
+      <AppHeader />
 
       <div className="decision-list-container">
-        <p className="decision-list-eyebrow">Case Files</p>
-        <h1 className="decision-list-title">Decisions</h1>
+        <div className="decision-list-header-row">
+          <div>
+            <p className="decision-list-eyebrow">Case Files</p>
+            <h1 className="decision-list-title">Decisions</h1>
+          </div>
+          <Link to="/decisions/new" className="new-decision-btn">
+            + New Decision
+          </Link>
+        </div>
 
         {error && <p className="form-error">{error}</p>}
 

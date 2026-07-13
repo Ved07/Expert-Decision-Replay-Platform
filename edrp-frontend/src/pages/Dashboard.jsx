@@ -3,6 +3,7 @@ import { getCurrentUser, logout } from "../services/api";
 import RoleStamp from "../components/RoleStamp";
 import "./Dashboard.css";
 import { Link } from "react-router-dom";
+import AppHeader from "../components/AppHeader";
 
 function Dashboard() {
   const [user, setUser] = useState(null);
@@ -20,17 +21,10 @@ function Dashboard() {
     fetchUser();
   }, []);
 
-  function handleLogout() {
-    logout();
-    window.location.href = "/login";
-  }
 
   return (
     <div className="dashboard-page">
-      <header className="dashboard-header">
-        <span className="dashboard-header__brand">Expert Decision Replay Platform</span>
-        <button className="btn-ghost" onClick={handleLogout}>Log Out</button>
-      </header>
+      <AppHeader />
 
       {error && <p className="form-error" style={{ textAlign: "center", marginTop: 40 }}>{error}</p>}
 

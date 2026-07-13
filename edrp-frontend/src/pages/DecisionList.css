@@ -75,3 +75,43 @@
   margin: 0;
   line-height: 1.5;
 }
+
+.decision-list-header-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.decision-list-header-row .decision-list-title {
+  margin-bottom: 0;
+}
+
+.new-decision-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--brass);
+  padding: 11px 20px;
+  border-radius: 2px;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(176, 141, 87, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.new-decision-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(176, 141, 87, 0.35);
+  filter: brightness(1.05);
+}
+
+.new-decision-btn:active {
+  transform: translateY(0);
+}
