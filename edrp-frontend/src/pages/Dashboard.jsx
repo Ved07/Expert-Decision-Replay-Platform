@@ -7,6 +7,8 @@ import AppHeader from "../components/AppHeader";
 import RoleStamp from "../components/RoleStamp";
 import StatusStamp from "../components/StatusStamp";
 import "./Dashboard.css";
+import MyTeamCard from "../components/MyTeamCard";
+
 
 function Dashboard() {
   const [user, setUser] = useState(null);
@@ -145,6 +147,8 @@ function Dashboard() {
               ))}
             </div>
           </section>
+
+          <MyTeamCard userRole={user.role} />
 
         </div>
       )}

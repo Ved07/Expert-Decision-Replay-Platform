@@ -183,3 +183,44 @@ export async function getAdminStats() {
   const response = await apiClient.get("/admin/stats");
   return response.data;
 }
+
+export async function getMyTeam() {
+  const response = await apiClient.get("/teams/mine");
+  return response.data;
+}
+
+export async function getAllTeams() {
+  const response = await apiClient.get("/teams");
+  return response.data;
+}
+
+export async function getTeamDetail(teamId) {
+  const response = await apiClient.get(`/teams/${teamId}`);
+  return response.data;
+}
+
+export async function getUnassignedUsers() {
+  const response = await apiClient.get("/users/unassigned");
+  return response.data;
+}
+
+export async function addUserToTeam(userId, teamId) {
+  const response = await apiClient.patch(`/users/${userId}/team`, null, {
+    params: { team_id: teamId },
+  });
+  return response.data;
+}
+
+export async function removeUserFromTeam(userId) {
+  await apiClient.delete(`/users/${userId}/team`);
+}
+
+export async function createTeam(name, managerId) {
+  const response = await apiClient.post("/teams", { name, manager_id: managerId || null });
+  return response.data;
+}
+
+export async function updateTeam(teamId, updates) {
+  const response = await apiClient.patch(`/teams/${teamId}`, updates);
+  return response.data;
+}

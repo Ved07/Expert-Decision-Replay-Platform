@@ -6,6 +6,7 @@ import DecisionList from "./pages/DecisionList";
 import CreateDecision from "./pages/CreateDecision";
 import DecisionDetail from "./pages/DecisionDetail";
 import Landing from "./pages/Landing";
+import TeamManagement from "./pages/TeamManagement";
 
 function App() {
   return (
@@ -18,6 +19,8 @@ function App() {
       <Route path="/decisions/new" element={<CreateDecision />} />
       <Route path="/decisions/:id" element={<DecisionDetail />} />
       <Route path="/decisions" element={<DecisionList />} />
+      <Route path="/team" element={<TeamManagement />} />
+      <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
     

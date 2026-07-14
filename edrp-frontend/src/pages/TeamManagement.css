@@ -1,0 +1,15 @@
+.form-group select {
+  width: 100%;
+  padding: 11px 12px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-dark);
+  background: #fffdf9;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  outline: none;
+}
+
+.mini-decision-card {
+  gap: 12px;
+}

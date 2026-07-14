@@ -1,3 +1,5 @@
+from ast import List
+from typing import List
 from pydantic import BaseModel
 from datetime import datetime
 from models import DecisionStatus
@@ -13,6 +15,16 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+# Define a schema for user output (excluding password)
+class UserOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+
+    class Config:
+        from_attributes = True
 
 # Define a schema for user output (excluding password)
 class TeamCreate(BaseModel):
@@ -125,3 +137,25 @@ class ApprovalOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TeamMemberOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+# Define a schema for team detail output
+class TeamDetailOut(BaseModel):
+    id: int
+    name: str
+    manager_id: int | None
+    manager_name: str | None
+    members: List[TeamMemberOut]
+
+# Define a schema for team update
+class TeamUpdate(BaseModel):
+    name: str | None = None
+    manager_id: int | None = None
