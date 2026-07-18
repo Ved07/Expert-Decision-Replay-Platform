@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from auth import get_db, get_current_user
 from models import User, Decision, Comment
 from schemas import CommentCreate, CommentOut
+from helpers import notify
 
 router = APIRouter(prefix="/decisions", tags=["Comments"])
 
@@ -26,6 +27,13 @@ def create_comment(
         content=payload.content,
     )
     db.add(new_comment)
+    if decision.created_by != current_user.id:
+        notify(
+            db,
+            user_id=decision.created_by,
+            message=f"{current_user.name} commented on '{decision.title}'.",
+            link=f"/decisions/{decision.id}",
+        )
     db.commit()
     db.refresh(new_comment)
 

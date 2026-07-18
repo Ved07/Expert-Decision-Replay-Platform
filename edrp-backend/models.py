@@ -128,3 +128,14 @@ class AuditLog(Base):
     entity_id = Column(Integer, nullable=False)
     details = Column(Text, nullable=True)             # human-readable extra context
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # who receives it
+    message = Column(String, nullable=False)
+    link = Column(String, nullable=True)  # e.g. "/decisions/5" — where clicking it should go
+    is_read = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

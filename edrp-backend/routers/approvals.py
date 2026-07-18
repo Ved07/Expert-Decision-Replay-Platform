@@ -7,6 +7,7 @@ from models import User, Decision, DecisionStatus, Approval, ApprovalDecision
 from schemas import ApprovalCreate, ApprovalOut
 from helpers import get_next_required_role, APPROVAL_LEVELS
 from helpers import log_action
+from helpers import notify
 
 router = APIRouter(prefix="/decisions", tags=["Approvals"])
 
@@ -54,7 +55,26 @@ def review_decision(
             decision.status = DecisionStatus.APPROVED
         else:
             decision.status = DecisionStatus.UNDER_REVIEW
-    
+
+    notify(
+        db,
+        user_id=decision.created_by,
+        message=f"Your decision '{decision.title}' was {payload.outcome.value.lower()} by a {current_user.role}.",
+        link=f"/decisions/{decision.id}",
+    )
+
+    # If it's still under review, tell whoever's turn it is now
+    if decision.status == DecisionStatus.UNDER_REVIEW:
+        next_role = get_next_required_role(decision_id, db)
+        if next_role:
+            next_reviewers = db.query(User).filter(User.role == next_role).all()
+            for reviewer in next_reviewers:
+                notify(
+                    db,
+                    user_id=reviewer.id,
+                    message=f"'{decision.title}' is awaiting your review.",
+                    link=f"/decisions/{decision.id}",
+            )
     log_action(
     db,
     actor_id=current_user.id,

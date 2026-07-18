@@ -240,3 +240,21 @@ export async function updateUserRole(userId, newRole) {
   });
   return response.data;
 }
+
+export async function getNotifications() {
+  const response = await apiClient.get("/notifications");
+  return response.data;
+}
+
+export async function getUnreadCount() {
+  const response = await apiClient.get("/notifications/unread-count");
+  return response.data;
+}
+
+export async function markNotificationRead(id) {
+  await apiClient.patch(`/notifications/${id}/read`);
+}
+
+export async function markAllNotificationsRead() {
+  await apiClient.patch("/notifications/mark-all-read");
+}

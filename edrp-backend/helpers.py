@@ -80,3 +80,14 @@ def log_action(db, actor_id: int, action: str, entity_type: str, entity_id: int,
         details=details,
     )
     db.add(entry)
+
+def notify(db, user_id: int, message: str, link: str | None = None):
+    """
+    Creates a notification for a specific user. Like log_action, this
+    does NOT commit — it just adds the row, so it's saved together
+    with whatever else the calling endpoint is already committing.
+    """
+    from models import Notification
+
+    note = Notification(user_id=user_id, message=message, link=link)
+    db.add(note)

@@ -159,3 +159,14 @@ class TeamDetailOut(BaseModel):
 class TeamUpdate(BaseModel):
     name: str | None = None
     manager_id: int | None = None
+
+
+class NotificationOut(BaseModel):
+    id: int
+    message: str
+    link: str | None
+    is_read: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
