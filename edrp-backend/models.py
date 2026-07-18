@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Boolean, Column, Integer, String
 from database import Base
 from sqlalchemy import ForeignKey
 import enum
@@ -91,9 +91,8 @@ class Comment(Base):
     id = Column(Integer, primary_key=True, index=True)
     decision_id = Column(Integer, ForeignKey("decisions.id"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-
     content = Column(Text, nullable=False)
-
+    is_deleted = Column(Boolean, default=False, nullable=False)   # NEW
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # Define the Approval model
@@ -118,3 +117,14 @@ class ApprovalDecision(str, enum.Enum):
     APPROVED = "Approved"
     REJECTED = "Rejected"
     ESCALATED = "Escalated"
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    action = Column(String, nullable=False)          # e.g. "role_changed", "comment_deleted"
+    entity_type = Column(String, nullable=False)     # e.g. "User", "Comment", "Decision"
+    entity_id = Column(Integer, nullable=False)
+    details = Column(Text, nullable=True)             # human-readable extra context
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

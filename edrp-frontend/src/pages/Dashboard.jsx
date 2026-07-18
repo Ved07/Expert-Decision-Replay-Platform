@@ -104,6 +104,12 @@ function Dashboard() {
                   </div>
                 ))}
               </div>
+              <Link to="/audit-log" className="btn-ghost-light" style={{ display: "inline-block", marginTop: 16 }}>
+                View Full Audit Log
+              </Link>
+              <Link to="/users" className="btn-ghost-light" style={{ display: "inline-block", marginTop: 16, marginLeft: 12 }}>
+              Manage Users
+            </Link>
             </section>
           )}
 

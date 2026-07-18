@@ -6,6 +6,7 @@ from auth import get_db, get_current_user
 from models import User, Decision, DecisionStatus, Approval, ApprovalDecision
 from schemas import ApprovalCreate, ApprovalOut
 from helpers import get_next_required_role, APPROVAL_LEVELS
+from helpers import log_action
 
 router = APIRouter(prefix="/decisions", tags=["Approvals"])
 
@@ -53,7 +54,15 @@ def review_decision(
             decision.status = DecisionStatus.APPROVED
         else:
             decision.status = DecisionStatus.UNDER_REVIEW
-
+    
+    log_action(
+    db,
+    actor_id=current_user.id,
+    action="decision_reviewed",
+    entity_type="Decision",
+    entity_id=decision_id,
+    details=f"{payload.outcome.value} by {current_user.role}",
+    )   
     db.commit()
     db.refresh(new_approval)
 
@@ -97,3 +106,4 @@ def list_approvals(
         )
         for a in approvals
     ]
+

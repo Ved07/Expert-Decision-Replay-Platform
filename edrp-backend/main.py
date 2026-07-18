@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from routers import audit
 
 from routers import (
     auth_routes,
@@ -41,7 +42,8 @@ app.include_router(decisions.router)
 app.include_router(alternatives.router)
 app.include_router(attachments.router)
 app.include_router(comments.router)
+app.include_router(comments.router1)
 app.include_router(approvals.router)
 app.include_router(admin.router)
-
+app.include_router(audit.router)
 

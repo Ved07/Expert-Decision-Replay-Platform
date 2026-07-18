@@ -7,6 +7,8 @@ import CreateDecision from "./pages/CreateDecision";
 import DecisionDetail from "./pages/DecisionDetail";
 import Landing from "./pages/Landing";
 import TeamManagement from "./pages/TeamManagement";
+import AuditLog from "./pages/AuditLog";
+import UserManagement from "./pages/UserManagement";
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
       <Route path="/decisions" element={<DecisionList />} />
       <Route path="/team" element={<TeamManagement />} />
       <Route path="*" element={<Navigate to="/" />} />
+      <Route path="/audit-log" element={<AuditLog />} />
+      <Route path="/users" element={<UserManagement />} />
       </Routes>
     </div>
     

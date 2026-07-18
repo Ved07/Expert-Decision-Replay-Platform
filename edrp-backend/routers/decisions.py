@@ -6,6 +6,8 @@ from auth import get_db, get_current_user
 from models import User, Decision, DecisionStatus
 from schemas import DecisionCreate, DecisionUpdate, DecisionOut
 from helpers import get_next_required_role
+from helpers import log_action
+
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -22,8 +24,19 @@ def create_decision(
         created_by=current_user.id,
     )
     db.add(new_decision)
+
+    
     db.commit()
     db.refresh(new_decision)
+    log_action(
+        db,
+        actor_id=current_user.id,
+        action="decision_created",
+        entity_type="Decision",
+        entity_id=new_decision.id,  # careful: available only after db.flush(), see note below
+        details=new_decision.title,
+    )
+    db.commit()
     return new_decision
 
 # This endpoint allows a user to list all decisions.

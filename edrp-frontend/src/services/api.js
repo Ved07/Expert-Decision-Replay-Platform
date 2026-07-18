@@ -224,3 +224,19 @@ export async function updateTeam(teamId, updates) {
   const response = await apiClient.patch(`/teams/${teamId}`, updates);
   return response.data;
 }
+export async function getAuditLogs() {
+  const response = await apiClient.get("/audit-logs");
+  return response.data;
+}
+
+export async function getAllUsers() {
+  const response = await apiClient.get("/users");
+  return response.data;
+}
+
+export async function updateUserRole(userId, newRole) {
+  const response = await apiClient.patch(`/users/${userId}/role`, null, {
+    params: { new_role: newRole },
+  });
+  return response.data;
+}

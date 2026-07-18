@@ -113,3 +113,32 @@ def remove_user_from_team(
     user.team_id = None
     db.commit()
     return None
+
+from helpers import log_action
+
+@router.patch("/{user_id}/role")
+def update_role(
+    user_id: int,
+    new_role: str,
+    admin_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_role = user.role
+    user.role = new_role
+
+    log_action(
+        db,
+        actor_id=admin_user.id,
+        action="role_changed",
+        entity_type="User",
+        entity_id=user.id,
+        details=f"Role changed from {old_role} to {new_role}",
+    )
+
+    db.commit()
+    db.refresh(user)
+    return {"id": user.id, "name": user.name, "role": user.role}
