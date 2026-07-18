@@ -91,3 +91,29 @@ def notify(db, user_id: int, message: str, link: str | None = None):
 
     note = Notification(user_id=user_id, message=message, link=link)
     db.add(note)
+
+def create_decision_version(db, decision, changed_by_id: int):
+    """
+    Saves a snapshot of the decision's CURRENT state (before you apply
+    new changes to it) as the next version number in its history.
+    Call this right before modifying decision.title/problem_statement/status.
+    """
+    from models import DecisionVersion
+
+    latest = (
+        db.query(DecisionVersion)
+        .filter(DecisionVersion.decision_id == decision.id)
+        .order_by(DecisionVersion.version_number.desc())
+        .first()
+    )
+    next_version = (latest.version_number + 1) if latest else 1
+
+    snapshot = DecisionVersion(
+        decision_id=decision.id,
+        version_number=next_version,
+        title=decision.title,
+        problem_statement=decision.problem_statement,
+        status=decision.status,
+        changed_by=changed_by_id,
+    )
+    db.add(snapshot)

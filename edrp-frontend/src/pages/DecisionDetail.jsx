@@ -5,10 +5,11 @@ import {
   postComment, uploadAttachment, downloadAttachment,
   createAlternative, deleteAttachment,
   getApprovals, submitApproval, getCurrentUser,
+  updateDecision, getDecisionVersions,
 } from "../services/api";
 import StatusStamp from "../components/StatusStamp";
-import "./DecisionDetail.css";
 import AppHeader from "../components/AppHeader";
+import "./DecisionDetail.css";
 
 const APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"];
 
@@ -33,9 +34,15 @@ function DecisionDetail() {
   const [currentUser, setCurrentUser] = useState(null);
   const [error, setError] = useState("");
 
+  // Editing + version history
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editProblem, setEditProblem] = useState("");
+  const [versions, setVersions] = useState([]);
+
   async function loadEverything() {
     try {
-      const [decisionData, altData, attachData, commentData, approvalData, userData] =
+      const [decisionData, altData, attachData, commentData, approvalData, userData, versionData] =
         await Promise.all([
           getDecision(id),
           getAlternatives(id),
@@ -43,13 +50,17 @@ function DecisionDetail() {
           getComments(id),
           getApprovals(id),
           getCurrentUser(),
+          getDecisionVersions(id),
         ]);
       setDecision(decisionData);
+      setEditTitle(decisionData.title);
+      setEditProblem(decisionData.problem_statement);
       setAlternatives(altData);
       setAttachments(attachData);
       setComments(commentData);
       setApprovals(approvalData);
       setCurrentUser(userData);
+      setVersions(versionData);
       setError("");
     } catch (err) {
       setError(err.friendlyMessage);
@@ -69,10 +80,26 @@ function DecisionDetail() {
   const nextRole = getNextRequiredRole();
   const isMyTurn = currentUser && nextRole === currentUser.role;
 
+  const canEdit =
+    currentUser &&
+    decision &&
+    (currentUser.id === decision.created_by || currentUser.role === "Administrator");
+
   async function handleApprovalAction(outcome) {
     try {
       await submitApproval(id, outcome, approvalComment);
       setApprovalComment("");
+      loadEverything();
+    } catch (err) {
+      setError(err.friendlyMessage);
+    }
+  }
+
+  async function handleEditSubmit(event) {
+    event.preventDefault();
+    try {
+      await updateDecision(id, { title: editTitle, problem_statement: editProblem });
+      setIsEditing(false);
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
@@ -141,7 +168,7 @@ function DecisionDetail() {
 
   return (
     <div className="decision-detail-page">
-     <AppHeader backTo="/decisions" backLabel="Back to Decisions" />
+      <AppHeader backTo="/decisions" backLabel="Back to Decisions" />
 
       {error && (
         <p className="form-error" style={{ textAlign: "center", padding: "12px 0", margin: 0 }}>
@@ -152,15 +179,93 @@ function DecisionDetail() {
       {decision && (
         <div className="decision-detail-container">
 
-          {/* ---- Main decision card ---- */}
+          {/* ---- Main decision card (view or edit mode) ---- */}
           <div className="record-card">
             <div className="decision-detail__top">
               <p className="record-card__eyebrow">File #{decision.id}</p>
               <StatusStamp value={decision.status} />
             </div>
-            <h1 className="record-card__title">{decision.title}</h1>
-            <p className="decision-detail__problem">{decision.problem_statement}</p>
+
+            {!isEditing ? (
+              <>
+                <h1 className="record-card__title">{decision.title}</h1>
+                <p className="decision-detail__problem">{decision.problem_statement}</p>
+                {canEdit && (
+                  <button
+                    className="btn-ghost-light"
+                    onClick={() => setIsEditing(true)}
+                    style={{ marginTop: 12 }}
+                  >
+                    Edit Decision
+                  </button>
+                )}
+              </>
+            ) : (
+              <form onSubmit={handleEditSubmit}>
+                <div className="form-group">
+                  <label>Title</label>
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Problem Statement</label>
+                  <textarea
+                    value={editProblem}
+                    onChange={(e) => setEditProblem(e.target.value)}
+                    rows={5}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    style={{ width: "auto", padding: "10px 24px" }}
+                  >
+                    Save Changes
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost-light"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditTitle(decision.title);
+                      setEditProblem(decision.problem_statement);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
+
+          {/* ---- Version History ---- */}
+          {versions.length > 0 && (
+            <section className="detail-section">
+              <h2 className="detail-section__title">Version History</h2>
+              <div className="approval-timeline">
+                {versions.map((v) => (
+                  <div className="approval-entry" key={v.id}>
+                    <span className="record-field__label" style={{ flexShrink: 0 }}>
+                      v{v.version_number}
+                    </span>
+                    <div className="approval-entry__body">
+                      <p className="approval-entry__meta">
+                        <strong>{v.changed_by_name}</strong> ·{" "}
+                        {new Date(v.created_at).toLocaleString()}
+                      </p>
+                      <p className="approval-entry__comment">
+                        "{v.title}" — {v.status}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* ---- Approval History ---- */}
           <section className="detail-section">

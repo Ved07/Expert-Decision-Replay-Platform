@@ -8,22 +8,47 @@ import "./DecisionList.css";
 function DecisionList() {
   const [decisions, setDecisions] = useState([]);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
     async function fetchDecisions() {
       try {
-        const data = await getDecisions();
+        const data = await getDecisions(searchTerm, statusFilter);
         setDecisions(data);
       } catch (err) {
         setError(err.friendlyMessage || "Could not load decisions.");
       }
     }
-    fetchDecisions();
-  }, []);
+
+    const timeoutId = setTimeout(fetchDecisions, 400);
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, statusFilter]);
 
   return (
     <div className="decision-list-page">
       <AppHeader />
+      <div className="decision-filters">
+        <input
+          type="text"
+          placeholder="Search decisions..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="decision-filters__search"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="decision-filters__select"
+        >
+          <option value="">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Under Review">Under Review</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Archived">Archived</option>
+        </select>
+      </div>
 
       <div className="decision-list-container">
         <div className="decision-list-header-row">

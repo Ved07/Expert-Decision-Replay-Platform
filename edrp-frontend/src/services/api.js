@@ -83,8 +83,12 @@ export async function getCurrentUser() {
   return response.data;
 }
 
-export async function getDecisions() {
-  const response = await apiClient.get("/decisions");
+export async function getDecisions(search = "", status = "") {
+  const params = {};
+  if (search) params.search = search;
+  if (status) params.status = status;
+
+  const response = await apiClient.get("/decisions", { params });
   return response.data;
 }
 
@@ -257,4 +261,14 @@ export async function markNotificationRead(id) {
 
 export async function markAllNotificationsRead() {
   await apiClient.patch("/notifications/mark-all-read");
+}
+
+export async function updateDecision(id, updates) {
+  const response = await apiClient.patch(`/decisions/${id}`, updates);
+  return response.data;
+}
+
+export async function getDecisionVersions(id) {
+  const response = await apiClient.get(`/decisions/${id}/versions`);
+  return response.data;
 }

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from auth import get_db, get_current_user
 from models import User, Decision, DecisionStatus, Approval, ApprovalDecision
 from schemas import ApprovalCreate, ApprovalOut
-from helpers import get_next_required_role, APPROVAL_LEVELS
+from helpers import create_decision_version, get_next_required_role, APPROVAL_LEVELS
 from helpers import log_action
 from helpers import notify
 
@@ -23,6 +23,8 @@ def review_decision(
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
 
+    # Create a new version of the decision before making any changes!!!!!!!!!!!!!!!!!
+    create_decision_version(db, decision, current_user.id)
     next_required_role = get_next_required_role(decision_id, db)
 
     if next_required_role is None:

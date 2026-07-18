@@ -170,3 +170,16 @@ class NotificationOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class DecisionVersionOut(BaseModel):
+    id: int
+    version_number: int
+    title: str
+    problem_statement: str
+    status: DecisionStatus
+    changed_by: int
+    changed_by_name: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
