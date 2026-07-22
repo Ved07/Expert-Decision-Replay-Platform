@@ -9,9 +9,13 @@ DATABASE_URL = URL.create(
     drivername="postgresql+psycopg2",
     username="postgres",
     password=os.getenv("DB_PASSWORD"),
-    host="localhost",
+    host="db.ebseqdcqieajimrpdtkb.supabase.co",
+    # host="localhost",
     port=5432,
-    database="edrp_db",
+    # port=5432,
+    database="postgres",
+    # database = "edrp_db",
+    query={"sslmode": "require"},
 )
 
 engine = create_engine(DATABASE_URL)
