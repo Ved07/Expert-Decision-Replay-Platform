@@ -272,3 +272,36 @@ export async function getDecisionVersions(id) {
   const response = await apiClient.get(`/decisions/${id}/versions`);
   return response.data;
 }
+
+export async function exportDecisionPDF(id, title) {
+  const response = await apiClient.get(`/decisions/${id}/export/pdf`, { responseType: "blob" });
+  triggerDownload(response.data, `decision_${id}_${title.replace(/\s+/g, "_")}.pdf`);
+}
+
+export async function exportDecisionsExcel() {
+  const response = await apiClient.get("/decisions/export/excel", { responseType: "blob" });
+  triggerDownload(response.data, "decisions_export.xlsx");
+}
+
+function triggerDownload(blobData, filename) {
+  const blobUrl = window.URL.createObjectURL(new Blob([blobData]));
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+export async function deleteDecision(id) {
+  await apiClient.delete(`/decisions/${id}`);
+}
+
+export async function deleteComment(commentId) {
+  await apiClient.delete(`/comments/${commentId}`);
+  } 
+
+export async function deleteTeam(teamId) {
+  await apiClient.delete(`/teams/${teamId}`);
+}

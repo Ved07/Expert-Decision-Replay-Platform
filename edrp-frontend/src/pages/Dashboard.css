@@ -185,3 +185,15 @@
   color: var(--text-dark);
   flex: 1;
 }
+
+.stat-box--clickable {
+  text-decoration: none;
+  display: block;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.stat-box--clickable:hover {
+  border-color: var(--brass);
+  transform: translateY(-2px);
+}

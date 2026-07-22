@@ -82,26 +82,31 @@ function Dashboard() {
             <section className="detail-section">
               <h2 className="detail-section__title">System Overview</h2>
               <div className="stats-grid">
-                <div className="stat-box">
+                <Link to="/users" className="stat-box stat-box--clickable">
                   <span className="stat-box__value">{adminStats.total_users}</span>
                   <span className="stat-box__label">Users</span>
-                </div>
-                <div className="stat-box">
+                </Link>
+                <Link to="/team" className="stat-box stat-box--clickable">
                   <span className="stat-box__value">{adminStats.total_teams}</span>
                   <span className="stat-box__label">Teams</span>
-                </div>
-                <div className="stat-box">
+                </Link>
+                <Link to="/decisions" className="stat-box stat-box--clickable">
                   <span className="stat-box__value">{adminStats.total_decisions}</span>
                   <span className="stat-box__label">Decisions</span>
-                </div>
+                </Link>
               </div>
 
               <div className="status-breakdown">
                 {Object.entries(adminStats.decisions_by_status).map(([status, count]) => (
-                  <div className="status-breakdown__row" key={status}>
+                  <Link
+                    to={`/decisions?status=${encodeURIComponent(status)}`}
+                    className="status-breakdown__row"
+                    key={status}
+                    style={{ textDecoration: "none" }}
+                  >
                     <StatusStamp value={status} />
                     <span className="status-breakdown__count">{count}</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
               <Link to="/audit-log" className="btn-ghost-light" style={{ display: "inline-block", marginTop: 16 }}>

@@ -10,6 +10,10 @@ import {
 import StatusStamp from "../components/StatusStamp";
 import AppHeader from "../components/AppHeader";
 import "./DecisionDetail.css";
+import { exportDecisionPDF } from "../services/api";
+import { deleteDecision } from "../services/api";
+import { deleteComment } from "../services/api";
+
 
 const APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"];
 
@@ -162,6 +166,28 @@ function DecisionDetail() {
     }
   }
 
+  async function handleDeleteDecision() {
+    if (!window.confirm("Delete this decision permanently? This cannot be undone.")) {
+      return;
+    }
+    try {
+      await deleteDecision(id);
+      navigate("/decisions");
+    } catch (err) {
+      setError(err.friendlyMessage);
+    }
+  }
+
+async function handleDeleteComment(commentId) {
+  if (!window.confirm("Delete this comment?")) return;
+  try {
+    await deleteComment(commentId);
+    loadEverything();
+  } catch (err) {
+    setError(err.friendlyMessage);
+  }
+}
+
   if (!decision && !error) {
     return <p style={{ padding: 40, color: "var(--line)" }}>Loading case file...</p>;
   }
@@ -189,16 +215,27 @@ function DecisionDetail() {
             {!isEditing ? (
               <>
                 <h1 className="record-card__title">{decision.title}</h1>
+                <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 10 }}>
+                  Created by <strong>{decision.creator_name}</strong>
+                </p>
                 <p className="decision-detail__problem">{decision.problem_statement}</p>
                 {canEdit && (
-                  <button
-                    className="btn-ghost-light"
-                    onClick={() => setIsEditing(true)}
-                    style={{ marginTop: 12 }}
-                  >
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button className="btn-ghost-light" onClick={() => setIsEditing(true)}>
                     Edit Decision
                   </button>
-                )}
+                  <button className="btn-reject" onClick={handleDeleteDecision}>
+                    Delete Decision
+                  </button>
+                </div>
+              )}
+            <button
+            className="btn-ghost-light"
+            onClick={() => exportDecisionPDF(decision.id, decision.title)}
+            style={{ marginTop: 12, marginLeft: 8 }}
+          >
+            Export as PDF
+          </button>
               </>
             ) : (
               <form onSubmit={handleEditSubmit}>
@@ -416,39 +453,48 @@ function DecisionDetail() {
             </label>
           </section>
 
-          {/* ---- Comments ---- */}
-          <section className="detail-section">
-            <h2 className="detail-section__title">Discussion</h2>
-            <div className="comment-thread">
-              {comments.length === 0 && (
-                <p className="detail-section__empty">No comments yet — start the discussion.</p>
-              )}
-              {comments.map((c) => (
-                <div className="comment" key={c.id}>
-                  <div className="comment__meta">
-                    <span className="comment__author">{c.author_name}</span>
-                    <span className="comment__date">
-                      {new Date(c.created_at).toLocaleString()}
-                    </span>
+            {/* ---- Comments ---- */}
+            <section className="detail-section">
+              <h2 className="detail-section__title">Discussion</h2>
+              <div className="comment-thread">
+                {comments.length === 0 && (
+                  <p className="detail-section__empty">No comments yet — start the discussion.</p>
+                )}
+                {comments.map((c) => (
+                  <div className="comment" key={c.id}>
+                    <div className="comment__meta">
+                      <span className="comment__author">{c.author_name}</span>
+                      <span className="comment__date">
+                        {new Date(c.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="comment__content">{c.content}</p>
+                    {c.content !== "[deleted]" &&
+                      (c.author_id === currentUser?.id || currentUser?.role === "Administrator") && (
+                        <button
+                          className="attachment-remove-button"
+                          onClick={() => handleDeleteComment(c.id)}
+                          title="Delete comment"
+                        >
+                          Delete
+                        </button>
+                      )}
                   </div>
-                  <p className="comment__content">{c.content}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            <form onSubmit={handleCommentSubmit} className="comment-form">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                rows={3}
-              />
-              <button type="submit" className="btn-primary" style={{ width: "auto", padding: "10px 24px" }}>
-                Post
-              </button>
-            </form>
-          </section>
-
+              <form onSubmit={handleCommentSubmit} className="comment-form">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  rows={3}
+                />
+                <button type="submit" className="btn-primary" style={{ width: "auto", padding: "10px 24px" }}>
+                  Post
+                </button>
+              </form>
+            </section>
         </div>
       )}
     </div>

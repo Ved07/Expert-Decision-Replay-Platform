@@ -62,12 +62,14 @@ class DecisionOut(BaseModel):
     problem_statement: str
     status: DecisionStatus
     created_by: int
+    creator_name: str
     created_at: datetime
     updated_at: datetime | None
 
     class Config:
         from_attributes = True
 
+        
 # Define a schema for alternative creation
 class AlternativeCreate(BaseModel):
     title: str

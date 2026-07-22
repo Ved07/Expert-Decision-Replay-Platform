@@ -3,6 +3,7 @@ import {
   getCurrentUser, getMyTeam, getAllTeams, getTeamDetail,
   getUnassignedUsers, addUserToTeam, removeUserFromTeam,
   createTeam, updateTeam,
+  deleteTeam
 } from "../services/api";
 import AppHeader from "../components/AppHeader";
 import RoleStamp from "../components/RoleStamp";
@@ -129,7 +130,21 @@ function TeamManagement() {
     } catch (err) {
         setError(err.friendlyMessage);
     }
-    }   
+    }
+    async function handleDeleteTeam() {
+  if (!window.confirm(`Delete "${team.name}" permanently? Members will be unassigned, not deleted.`)) {
+    return;
+  }
+  try {
+    await deleteTeam(team.id);
+    const teams = await getAllTeams();
+    setAllTeams(teams);
+    setTeam(null);
+    setSelectedTeamId(teams.length > 0 ? teams[0].id : null);
+  } catch (err) {
+    setError(err.friendlyMessage);
+  }
+}   
 
   if (!currentUser && !error) {
     return <p style={{ padding: 40, color: "var(--line)" }}>Loading...</p>;
@@ -201,9 +216,14 @@ function TeamManagement() {
                   <label>Rename Team</label>
                   <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} />
                 </div>
+                <div style={{ display: "flex", gap: 8 }}>
                 <button type="submit" className="btn-primary" style={{ width: "auto", padding: "10px 24px" }}>
                   Save Name
                 </button>
+                <button type="button" className="btn-reject" onClick={handleDeleteTeam}>
+                  Delete Team
+                </button>
+              </div>
               </form>
             )}
             {isAdmin && (

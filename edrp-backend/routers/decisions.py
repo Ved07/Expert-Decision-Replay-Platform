@@ -1,21 +1,45 @@
+import io
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from auth import get_db, get_current_user
-from models import User, Decision, DecisionStatus
-from schemas import DecisionCreate, DecisionUpdate, DecisionOut
-from helpers import get_next_required_role
-from helpers import log_action
-from fastapi import Query
-from helpers import create_decision_version
-from models import DecisionVersion
-from schemas import DecisionVersionOut
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from openpyxl import Workbook
 
+from auth import get_db, get_current_user
+from models import User, Decision, DecisionStatus, Alternative, Approval, DecisionVersion
+from schemas import DecisionCreate, DecisionUpdate, DecisionOut, DecisionVersionOut
+from helpers import get_next_required_role, log_action, create_decision_version
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
-# This endpoint allows a user to create a new decision.
+
+def attach_creator_name(decision, db) -> dict:
+    """
+    Decision doesn't store the creator's name directly (only created_by,
+    a user ID) — this looks it up and returns a dict shaped like
+    DecisionOut, ready to be returned directly from any endpoint.
+    """
+    creator = db.query(User).filter(User.id == decision.created_by).first()
+    return {
+        "id": decision.id,
+        "title": decision.title,
+        "problem_statement": decision.problem_statement,
+        "status": decision.status,
+        "created_by": decision.created_by,
+        "creator_name": creator.name if creator else "Unknown",
+        "created_at": decision.created_at,
+        "updated_at": decision.updated_at,
+    }
+
+
+# ---------------- Core CRUD ----------------
+
 @router.post("", response_model=DecisionOut, status_code=201)
 def create_decision(
     payload: DecisionCreate,
@@ -28,22 +52,21 @@ def create_decision(
         created_by=current_user.id,
     )
     db.add(new_decision)
-
-    
     db.commit()
     db.refresh(new_decision)
+
     log_action(
         db,
         actor_id=current_user.id,
         action="decision_created",
         entity_type="Decision",
-        entity_id=new_decision.id,  # careful: available only after db.flush(), see note below
+        entity_id=new_decision.id,
         details=new_decision.title,
     )
     db.commit()
-    return new_decision
 
-# This endpoint allows a user to list all decisions.
+    return attach_creator_name(new_decision, db)
+
 
 @router.get("", response_model=List[DecisionOut])
 def list_decisions(
@@ -60,22 +83,24 @@ def list_decisions(
     if status_filter:
         query = query.filter(Decision.status == status_filter)
 
-    return query.order_by(Decision.created_at.desc()).all()
+    decisions = query.order_by(Decision.created_at.desc()).all()
+    return [attach_creator_name(d, db) for d in decisions]
 
-# This endpoint allows a user to list their own decisions.
+
 @router.get("/mine", response_model=List[DecisionOut])
 def get_my_decisions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return (
+    decisions = (
         db.query(Decision)
         .filter(Decision.created_by == current_user.id)
         .order_by(Decision.created_at.desc())
         .all()
     )
+    return [attach_creator_name(d, db) for d in decisions]
 
-# This endpoint allows a user to list all decisions that are pending their review.
+
 @router.get("/pending-review", response_model=List[DecisionOut])
 def get_pending_review_decisions(
     current_user: User = Depends(get_current_user),
@@ -94,9 +119,45 @@ def get_pending_review_decisions(
         d for d in under_review
         if get_next_required_role(d.id, db) == current_user.role
     ]
-    return pending
+    return [attach_creator_name(d, db) for d in pending]
 
-# This endpoint allows a user to retrieve a specific decision.
+
+@router.get("/export/excel")
+def export_decisions_excel(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decisions = db.query(Decision).order_by(Decision.created_at.desc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Decisions"
+
+    ws.append(["ID", "Title", "Status", "Problem Statement", "Created At"])
+
+    for d in decisions:
+        ws.append([
+            d.id,
+            d.title,
+            d.status.value,
+            d.problem_statement,
+            d.created_at.strftime("%Y-%m-%d %H:%M") if d.created_at else "",
+        ])
+
+    for cell in ws[1]:
+        cell.font = cell.font.copy(bold=True)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=decisions_export.xlsx"},
+    )
+
+
 @router.get("/{decision_id}", response_model=DecisionOut)
 def get_decision(
     decision_id: int,
@@ -106,9 +167,8 @@ def get_decision(
     decision = db.query(Decision).filter(Decision.id == decision_id).first()
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
-    return decision
+    return attach_creator_name(decision, db)
 
-# This endpoint allows a user to update a specific decision.
 
 @router.patch("/{decision_id}", response_model=DecisionOut)
 def update_decision(
@@ -134,9 +194,14 @@ def update_decision(
 
     db.commit()
     db.refresh(decision)
-    return decision
+    return attach_creator_name(decision, db)
 
-# This endpoint allows a user to delete a specific decision.
+from models import Comment, Alternative, Attachment, Approval, DecisionVersion
+import os
+
+UPLOAD_DIR = "uploads"
+
+
 @router.delete("/{decision_id}", status_code=204)
 def delete_decision(
     decision_id: int,
@@ -146,11 +211,40 @@ def delete_decision(
     decision = db.query(Decision).filter(Decision.id == decision_id).first()
     if not decision:
         raise HTTPException(status_code=404, detail="Decision not found")
+
+    if decision.created_by != current_user.id and current_user.role != "Administrator":
+        raise HTTPException(status_code=403, detail="You can only delete decisions you created")
+
+    # Remove the actual attachment files from disk before deleting their DB records
+    attachments = db.query(Attachment).filter(Attachment.decision_id == decision_id).all()
+    for attachment in attachments:
+        file_path = os.path.join(UPLOAD_DIR, attachment.stored_filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    # Delete every child record that references this decision, in any order
+    # (none of these reference each other, so order among them doesn't matter —
+    # only that they all happen BEFORE the parent Decision is deleted)
+    db.query(Comment).filter(Comment.decision_id == decision_id).delete()
+    db.query(Alternative).filter(Alternative.decision_id == decision_id).delete()
+    db.query(Attachment).filter(Attachment.decision_id == decision_id).delete()
+    db.query(Approval).filter(Approval.decision_id == decision_id).delete()
+    db.query(DecisionVersion).filter(DecisionVersion.decision_id == decision_id).delete()
+
+    log_action(
+        db,
+        actor_id=current_user.id,
+        action="decision_deleted",
+        entity_type="Decision",
+        entity_id=decision.id,
+        details=decision.title,
+    )
+
     db.delete(decision)
     db.commit()
     return None
 
-
+# ---------------- Version history ----------------
 
 @router.get("/{decision_id}/versions", response_model=List[DecisionVersionOut])
 def list_decision_versions(
@@ -184,3 +278,67 @@ def list_decision_versions(
     ]
 
 
+# ---------------- Export ----------------
+
+@router.get("/{decision_id}/export/pdf")
+def export_decision_pdf(
+    decision_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    alternatives = db.query(Alternative).filter(Alternative.decision_id == decision_id).all()
+    approvals = db.query(Approval).filter(Approval.decision_id == decision_id).all()
+
+    buffer = io.BytesIO()
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="Small", fontSize=9, textColor=colors.grey))
+
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
+    story = []
+
+    story.append(Paragraph(f"Decision Report — File #{decision.id}", styles["Title"]))
+    story.append(Paragraph(decision.title, styles["Heading2"]))
+    story.append(Paragraph(f"Status: {decision.status.value}", styles["Normal"]))
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Problem Statement", styles["Heading3"]))
+    story.append(Paragraph(decision.problem_statement, styles["Normal"]))
+    story.append(Spacer(1, 16))
+
+    if alternatives:
+        story.append(Paragraph("Alternatives Considered", styles["Heading3"]))
+        data = [["Title", "Pros", "Cons", "Cost"]]
+        for alt in alternatives:
+            data.append([alt.title, alt.pros or "-", alt.cons or "-", alt.estimated_cost or "-"])
+        table = Table(data, colWidths=[4 * cm, 4 * cm, 4 * cm, 3 * cm])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#12181F")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 16))
+
+    if approvals:
+        story.append(Paragraph("Approval History", styles["Heading3"]))
+        for a in approvals:
+            story.append(Paragraph(
+                f"{a.outcome.value} — reviewed {a.reviewed_at.strftime('%Y-%m-%d %H:%M')}",
+                styles["Normal"]
+            ))
+            if a.comments:
+                story.append(Paragraph(a.comments, styles["Small"]))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=decision_{decision.id}.pdf"},
+    )

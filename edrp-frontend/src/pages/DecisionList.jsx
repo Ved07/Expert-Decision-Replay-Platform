@@ -4,12 +4,15 @@ import { getDecisions } from "../services/api";
 import StatusStamp from "../components/StatusStamp";
 import AppHeader from "../components/AppHeader";
 import "./DecisionList.css";
+import { exportDecisionsExcel } from "../services/api";
+import { useSearchParams } from "react-router-dom";
 
 function DecisionList() {
   const [decisions, setDecisions] = useState([]);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [searchParams] = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "");
 
   useEffect(() => {
     async function fetchDecisions() {
@@ -59,6 +62,9 @@ function DecisionList() {
           <Link to="/decisions/new" className="new-decision-btn">
             + New Decision
           </Link>
+          <button className="btn-ghost" onClick={exportDecisionsExcel}>
+          Export All (Excel)
+        </button>
         </div>
 
         {error && <p className="form-error">{error}</p>}
@@ -75,6 +81,9 @@ function DecisionList() {
                 <StatusStamp value={d.status} />
               </div>
               <h2 className="decision-card__title">{d.title}</h2>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0" }}>
+                by {d.creator_name}
+              </p>
               <p className="decision-card__excerpt">
                 {d.problem_statement.length > 140
                   ? d.problem_statement.slice(0, 140) + "..."
