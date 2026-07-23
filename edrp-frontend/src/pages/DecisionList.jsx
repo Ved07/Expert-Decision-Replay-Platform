@@ -62,9 +62,9 @@ function DecisionList() {
           <Link to="/decisions/new" className="new-decision-btn">
             + New Decision
           </Link>
-          <button className="btn-ghost" onClick={exportDecisionsExcel}>
-          Export All (Excel)
-        </button>
+          <button className="btn-ghost-light" onClick={exportDecisionsExcel}>
+            EXPORT ALL (EXCEL)
+          </button>
         </div>
 
         {error && <p className="form-error">{error}</p>}

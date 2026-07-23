@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import sessionmaker, declarative_base
+import urllib
 
 load_dotenv()  # reads .env and loads DB_PASSWORD, JWT_SECRET_KEY, etc.
 
@@ -17,6 +18,10 @@ DATABASE_URL = URL.create(
     # database = "edrp_db",
     query={"sslmode": "require"},
 )
+
+# Retrieve and URL‑encode the DB password, then replace placeholder
+# _db_password = urllib.parse.quote_plus(os.getenv("DB_PASSWORD", ""))
+# DATABASE_URL = os.getenv("DATABASE_URL").replace("[DB_PASSWORD]", _db_password)
 
 engine = create_engine(DATABASE_URL)
 

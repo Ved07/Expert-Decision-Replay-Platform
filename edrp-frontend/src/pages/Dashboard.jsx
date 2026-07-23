@@ -115,6 +115,9 @@ function Dashboard() {
               <Link to="/users" className="btn-ghost-light" style={{ display: "inline-block", marginTop: 16, marginLeft: 12 }}>
               Manage Users
             </Link>
+            <Link to="/team" className="btn-ghost-light" style={{ display: "inline-block", marginTop: 16, marginLeft: 18 }}>
+              Manage Teams
+            </Link>
             </section>
           )}
 

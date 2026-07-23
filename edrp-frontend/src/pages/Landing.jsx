@@ -55,7 +55,7 @@ function Landing() {
       </section>
 
       <footer className="landing-footer">
-        <span>Expert Decision Replay Platform — Infosys Springboard Internship 7.0</span>
+        {/* <span>Expert Decision Replay Platform — Infosys Springboard Internship 7.0</span> */}
       </footer>
     </div>
   );

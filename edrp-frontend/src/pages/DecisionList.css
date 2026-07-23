@@ -151,3 +151,7 @@
   border: 1px solid var(--line);
   border-radius: 2px;
 }
+
+.btn-ghost-light {
+  text-decoration: none;
+}
