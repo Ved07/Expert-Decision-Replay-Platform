@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, Integer, String
 from database import Base
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, UniqueConstraint
 import enum
 from sqlalchemy import Enum as SQLEnum, DateTime, Text
 from sqlalchemy.sql import func
@@ -154,3 +154,20 @@ class DecisionVersion(Base):
 
     changed_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# Define the Rating model
+class Rating(Base):
+    __tablename__ = "ratings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    decision_id = Column(Integer, ForeignKey("decisions.id"), nullable=False)
+    rater_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # who gave the rating
+    stars = Column(Integer, nullable=False)  # 1-5
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("decision_id", "rater_id", name="uq_rating_decision_rater"),
+    )

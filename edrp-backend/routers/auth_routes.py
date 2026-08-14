@@ -8,8 +8,13 @@ from schemas import UserCreate
 
 router = APIRouter(tags=["Authentication"])
 
-# 
-@router.post("/users")
+@router.post(
+    "/users",
+    summary="Register a new user",
+    description="Create a new account for a user in the EDRP system using a validated email and password.",
+    response_description="User account created successfully.",
+    status_code=201,
+)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user.email).first()
     if existing:
@@ -25,8 +30,13 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-# 
-@router.post("/login")
+@router.post(
+    "/login",
+    summary="Authenticate a user",
+    description="Validate user credentials and return a signed JWT bearer token for authenticated API calls.",
+    response_description="Authentication token returned successfully.",
+    status_code=200,
+)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
 

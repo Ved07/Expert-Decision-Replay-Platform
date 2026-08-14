@@ -10,7 +10,14 @@ from helpers import build_team_detail
 router = APIRouter(prefix="/teams", tags=["Teams"])
 
 
-@router.post("", response_model=TeamOut)
+@router.post(
+    "",
+    response_model=TeamOut,
+    summary="Create a team",
+    description="Create a new team record and optionally assign an initial manager.",
+    response_description="Team created successfully.",
+    status_code=201,
+)
 def create_team(
     team: TeamCreate,
     admin_user: User = Depends(require_admin),
@@ -23,12 +30,26 @@ def create_team(
     return new_team
 
 
-@router.get("", response_model=List[TeamOut])
+@router.get(
+    "",
+    response_model=List[TeamOut],
+    summary="List all teams",
+    description="Fetch all available team definitions for organization-level management and visibility.",
+    response_description="Team list retrieved successfully.",
+    status_code=200,
+)
 def list_teams(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(Team).all()
 
 
-@router.get("/mine", response_model=TeamDetailOut)
+@router.get(
+    "/mine",
+    response_model=TeamDetailOut,
+    summary="Get my team",
+    description="Return the team that the authenticated user belongs to or manages, including team member details.",
+    response_description="Team profile retrieved successfully.",
+    status_code=200,
+)
 def get_my_team(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -47,7 +68,14 @@ def get_my_team(
     return build_team_detail(team, db)
 
 
-@router.patch("/{team_id}", response_model=TeamDetailOut)
+@router.patch(
+    "/{team_id}",
+    response_model=TeamDetailOut,
+    summary="Update a team",
+    description="Modify team metadata, including manager assignment, for an existing team record.",
+    response_description="Team updated successfully.",
+    status_code=200,
+)
 def update_team(
     team_id: int,
     payload: TeamUpdate,
@@ -67,7 +95,13 @@ def update_team(
     return build_team_detail(team, db)
 
 
-@router.delete("/{team_id}", status_code=204)
+@router.delete(
+    "/{team_id}",
+    summary="Delete a team",
+    description="Delete a team after first removing member team assignments, preserving the integrity of the organization model.",
+    response_description="Team deleted successfully.",
+    status_code=204,
+)
 def delete_team(
     team_id: int,
     current_user: User = Depends(require_admin),
@@ -84,7 +118,14 @@ def delete_team(
     return None
 
 
-@router.get("/{team_id}", response_model=TeamDetailOut)
+@router.get(
+    "/{team_id}",
+    response_model=TeamDetailOut,
+    summary="Get team details",
+    description="Retrieve a detailed view of a specific team, including manager information and current members.",
+    response_description="Team details retrieved successfully.",
+    status_code=200,
+)
 def get_team_detail(
     team_id: int,
     current_user: User = Depends(get_current_user),

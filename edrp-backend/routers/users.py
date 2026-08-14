@@ -9,7 +9,13 @@ from schemas import UserOut
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("/me")
+@router.get(
+    "/me",
+    summary="Get current authenticated user profile",
+    description="Return the currently authenticated user's profile, including their identity, email, and role.",
+    response_description="Current user profile retrieved successfully.",
+    status_code=200,
+)
 def read_current_user(current_user: User = Depends(get_current_user)):
     return {
         "id": current_user.id,
@@ -19,7 +25,14 @@ def read_current_user(current_user: User = Depends(get_current_user)):
     }
 
 
-@router.get("/unassigned", response_model=List[UserOut])
+@router.get(
+    "/unassigned",
+    response_model=List[UserOut],
+    summary="List unassigned users",
+    description="Return users who are not currently assigned to a team. This endpoint is intended for managers and administrators.",
+    response_description="Unassigned users returned successfully.",
+    status_code=200,
+)
 def list_unassigned_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -30,7 +43,13 @@ def list_unassigned_users(
     return db.query(User).filter(User.team_id.is_(None)).all()
 
 
-@router.get("")
+@router.get(
+    "",
+    summary="List all users",
+    description="Retrieve a full list of platform users for administrative management and oversight.",
+    response_description="User list returned successfully.",
+    status_code=200,
+)
 def list_users(admin_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     users = db.query(User).all()
     result = []
@@ -56,7 +75,13 @@ def update_role(
     return {"id": user.id, "name": user.name, "role": user.role}
 
 
-@router.patch("/{user_id}/team")
+@router.patch(
+    "/{user_id}/team",
+    summary="Assign a user to a team",
+    description="Attach a user to a team by team identifier, subject to the current user's administrative or managerial permissions.",
+    response_description="User team assignment updated successfully.",
+    status_code=200,
+)
 def assign_user_to_team(
     user_id: int,
     team_id: int,
@@ -86,7 +111,13 @@ def assign_user_to_team(
     return {"id": user.id, "name": user.name, "team_id": user.team_id}
 
 
-@router.delete("/{user_id}/team", status_code=204)
+@router.delete(
+    "/{user_id}/team",
+    summary="Remove a user from a team",
+    description="Remove a user from the current team membership while preserving the user record itself.",
+    response_description="User removed from team successfully.",
+    status_code=204,
+)
 def remove_user_from_team(
     user_id: int,
     current_user: User = Depends(get_current_user),

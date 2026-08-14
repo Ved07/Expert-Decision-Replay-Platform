@@ -173,6 +173,16 @@ class NotificationOut(BaseModel):
     class Config:
         from_attributes = True
 
+class RatingCreate(BaseModel):
+    stars: int
+
+
+class RatingSummaryOut(BaseModel):
+    average: float
+    count: int
+    my_rating: int | None  # the current user's own rating, if they've given one
+
+
 class DecisionVersionOut(BaseModel):
     id: int
     version_number: int

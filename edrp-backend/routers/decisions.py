@@ -342,3 +342,45 @@ def export_decision_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=decision_{decision.id}.pdf"},
     )
+
+@router.post("/{decision_id}/versions/{version_id}/restore", response_model=DecisionOut)
+def restore_decision_version(
+    decision_id: int,
+    version_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    decision = db.query(Decision).filter(Decision.id == decision_id).first()
+    if not decision:
+        raise HTTPException(status_code=404, detail="Decision not found")
+
+    if decision.created_by != current_user.id and current_user.role != "Administrator":
+        raise HTTPException(status_code=403, detail="You can only restore decisions you created")
+
+    version = (
+        db.query(DecisionVersion)
+        .filter(DecisionVersion.id == version_id, DecisionVersion.decision_id == decision_id)
+        .first()
+    )
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    # Snapshot the CURRENT state before overwriting it — restoring is itself a change
+    create_decision_version(db, decision, current_user.id)
+
+    decision.title = version.title
+    decision.problem_statement = version.problem_statement
+    decision.status = version.status
+
+    log_action(
+        db,
+        actor_id=current_user.id,
+        action="decision_restored",
+        entity_type="Decision",
+        entity_id=decision.id,
+        details=f"Restored to version {version.version_number}",
+    )
+
+    db.commit()
+    db.refresh(decision)
+    return attach_creator_name(decision, db)

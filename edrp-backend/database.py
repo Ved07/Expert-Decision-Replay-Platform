@@ -8,15 +8,11 @@ load_dotenv()  # reads .env and loads DB_PASSWORD, JWT_SECRET_KEY, etc.
 
 DATABASE_URL = URL.create(
     drivername="postgresql+psycopg2",
-    username="postgres",
+    username=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD"),
-    host="db.ebseqdcqieajimrpdtkb.supabase.co",
-    # host="localhost",
+    host=os.getenv("DB_HOST"),
     port=5432,
-    # port=5432,
-    database="postgres",
-    # database = "edrp_db",
-    query={"sslmode": "require"},
+    database=os.getenv("DB_NAME", "postgres")
 )
 
 # Retrieve and URL‑encode the DB password, then replace placeholder

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import audit
 from routers import notifications
+from routers import ratings
 
 from routers import (
     auth_routes,
@@ -48,3 +49,4 @@ app.include_router(approvals.router)
 app.include_router(admin.router)
 app.include_router(audit.router)
 app.include_router(notifications.router)
+app.include_router(ratings.router)
