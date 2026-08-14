@@ -10,6 +10,7 @@ COPY . .
 
 ENV VITE_API_URL=https://expert-decision-replay-platform-backend.onrender.com
 
+RUN npm run build   
 # Stage 2: serve those static files with a lightweight web server
 FROM nginx:alpine
 
