@@ -4,7 +4,41 @@
 }
 
 .create-decision-container {
-  max-width: 640px;
-  margin: 48px auto;
-  padding: 0 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.create-decision-card {
+  box-shadow: var(--shadow-float);
+}
+
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.form-label-row label {
+  margin-bottom: 0;
+}
+
+.char-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.form-help-text {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.create-decision-actions {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
 }

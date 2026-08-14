@@ -9,25 +9,37 @@ import Landing from "./pages/Landing";
 import TeamManagement from "./pages/TeamManagement";
 import AuditLog from "./pages/AuditLog";
 import UserManagement from "./pages/UserManagement";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+import { ToastProvider } from "./context/ToastContext";
+import { ConfirmModalProvider } from "./context/ConfirmModalContext";
+import CopilotButton from "./components/copilot/CopilotButton";
+import CopilotDrawer from "./components/copilot/CopilotDrawer";
 
 function App() {
   return (
-    <div>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Landing />} />
-      <Route path="/decisions/new" element={<CreateDecision />} />
-      <Route path="/decisions/:id" element={<DecisionDetail />} />
-      <Route path="/decisions" element={<DecisionList />} />
-      <Route path="/team" element={<TeamManagement />} />
-      <Route path="*" element={<Navigate to="/" />} />
-      <Route path="/audit-log" element={<AuditLog />} />
-      <Route path="/users" element={<UserManagement />} />
-      </Routes>
-    </div>
-    
+    <ErrorBoundary>
+      <ToastProvider>
+        <ConfirmModalProvider>
+          <div>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/" element={<Landing />} />
+              <Route path="/decisions/new" element={<CreateDecision />} />
+              <Route path="/decisions/:id" element={<DecisionDetail />} />
+              <Route path="/decisions" element={<DecisionList />} />
+              <Route path="/team" element={<TeamManagement />} />
+              <Route path="*" element={<Navigate to="/" />} />
+              <Route path="/audit-log" element={<AuditLog />} />
+              <Route path="/users" element={<UserManagement />} />
+            </Routes>
+            <CopilotButton />
+            <CopilotDrawer />
+          </div>
+        </ConfirmModalProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

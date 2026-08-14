@@ -321,3 +321,82 @@ export async function restoreDecisionVersion(decisionId, versionId) {
   const response = await apiClient.post(`/decisions/${decisionId}/versions/${versionId}/restore`);
   return response.data;
 }
+
+// --- EDRP Copilot AI Assistant ---
+export async function sendCopilotQuery(message, context = null) {
+  const response = await apiClient.post("/copilot/chat", { message, context });
+  return response.data;
+}
+
+export async function streamCopilotQuery(message, context, { onToken, onSuggestions, onError, onDone, signal } = {}) {
+  try {
+    const token = localStorage.getItem("access_token");
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/copilot/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message, context }),
+      signal,
+    });
+
+    if (!response.ok) {
+      let errText = `HTTP ${response.status}: Failed to reach Copilot`;
+      try {
+        const errJson = await response.json();
+        if (errJson.detail) errText = errJson.detail;
+      } catch (e) {}
+      if (onError) onError(errText);
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop(); // Keep uncompleted line in buffer
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data:")) continue;
+        const jsonStr = trimmed.slice(5).trim();
+        try {
+          const parsed = JSON.parse(jsonStr);
+          if (parsed.token && onToken) {
+            onToken(parsed.token);
+          }
+          if (parsed.suggestions && onSuggestions) {
+            onSuggestions(parsed.suggestions);
+          }
+          if (parsed.error && onError) {
+            onError(parsed.error);
+          }
+          if (parsed.done && onDone) {
+            onDone(parsed);
+          }
+        } catch (e) {
+          console.warn("Failed to parse SSE chunk:", jsonStr, e);
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name === "AbortError") {
+      if (onDone) onDone({ aborted: true });
+      return;
+    }
+    if (onError) {
+      onError(err.message || "Network error while connecting to Copilot stream.");
+    }
+  }
+}

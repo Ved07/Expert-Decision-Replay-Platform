@@ -7,21 +7,24 @@ import {
   getApprovals, submitApproval, getCurrentUser,
   updateDecision, getDecisionVersions,
   getRatings, rateDecision,
+  exportDecisionPDF, deleteDecision,
+  deleteComment, restoreDecisionVersion
 } from "../services/api";
 import StatusStamp from "../components/StatusStamp";
 import AppHeader from "../components/AppHeader";
 import StarRating from "../components/StarRating";
+import SkeletonLoader from "../components/SkeletonLoader";
+import { useToast } from "../context/ToastContext";
+import { useConfirm } from "../context/ConfirmModalContext";
 import "./DecisionDetail.css";
-import { exportDecisionPDF } from "../services/api";
-import { deleteDecision } from "../services/api";
-import { deleteComment, restoreDecisionVersion  } from "../services/api";
-
 
 const APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"];
 
 function DecisionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [decision, setDecision] = useState(null);
   const [alternatives, setAlternatives] = useState([]);
@@ -39,8 +42,8 @@ function DecisionDetail() {
   const [approvalComment, setApprovalComment] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // Ratings
   // Ratings
   const [ratings, setRatings] = useState({ average: 0, count: 0, my_rating: null });
   const [ratingError, setRatingError] = useState("");
@@ -51,6 +54,10 @@ function DecisionDetail() {
   const [editTitle, setEditTitle] = useState("");
   const [editProblem, setEditProblem] = useState("");
   const [versions, setVersions] = useState([]);
+
+  // Collapsible sections
+  const [showVersions, setShowVersions] = useState(false);
+  const [showAlternatives, setShowAlternatives] = useState(true);
 
   async function loadEverything() {
     try {
@@ -76,13 +83,30 @@ function DecisionDetail() {
       setVersions(versionData);
       setRatings(ratingData);
       setError("");
+
+      // Publish active decision context for Copilot
+      window.__EDRP_ACTIVE_DECISION__ = {
+        decisionId: decisionData.id,
+        decisionTitle: decisionData.title,
+        decisionStatus: decisionData.status,
+        decisionCategory: decisionData.category,
+        decisionDescription: decisionData.problem_statement,
+      };
+      window.dispatchEvent(new CustomEvent("edrp-context-change"));
     } catch (err) {
-      setError(err.friendlyMessage);
+      setError(err.friendlyMessage || "Error loading case file details.");
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     loadEverything();
+
+    return () => {
+      window.__EDRP_ACTIVE_DECISION__ = null;
+      window.dispatchEvent(new CustomEvent("edrp-context-change"));
+    };
   }, [id]);
 
   function getNextRequiredRole() {
@@ -103,30 +127,30 @@ function DecisionDetail() {
     try {
       await submitApproval(id, outcome, approvalComment);
       setApprovalComment("");
+      toast.success(`Approval outcome '${outcome}' submitted successfully.`);
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to submit approval review.");
     }
   }
 
   async function handleRate(stars) {
-    // Already rated, or a click is already in flight — ignore extra clicks.
     if (ratings.my_rating || submittingRating) return;
 
     setSubmittingRating(true);
     setRatingError("");
 
-    // Optimistically lock the stars immediately so a second click
-    // can't fire a second request while we wait for the server.
     setRatings((prev) => ({ ...prev, my_rating: stars }));
 
     try {
       const summary = await rateDecision(id, stars);
       setRatings(summary);
+      toast.success("Thank you for your rating!");
     } catch (err) {
-      // Server rejected it — unlock so the error is visible and honest.
       setRatings((prev) => ({ ...prev, my_rating: null }));
       setRatingError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Could not submit rating.");
     } finally {
       setSubmittingRating(false);
     }
@@ -137,9 +161,11 @@ function DecisionDetail() {
     try {
       await updateDecision(id, { title: editTitle, problem_statement: editProblem });
       setIsEditing(false);
+      toast.success("Decision changes saved successfully.");
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to save changes.");
     }
   }
 
@@ -161,18 +187,30 @@ function DecisionDetail() {
       setAltFeasibility("");
       setAltRisk("");
       setShowAltForm(false);
+      toast.success("Alternative option added.");
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to add alternative.");
     }
   }
 
   async function handleDeleteAttachment(attachmentId) {
+    const ok = await confirm({
+      title: "Remove Attachment",
+      message: "Are you sure you want to remove this attached file?",
+      confirmText: "Remove",
+      isDanger: true,
+    });
+    if (!ok) return;
+
     try {
       await deleteAttachment(attachmentId);
+      toast.success("Attachment removed.");
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to remove attachment.");
     }
   }
 
@@ -182,9 +220,11 @@ function DecisionDetail() {
     try {
       await postComment(id, newComment);
       setNewComment("");
+      toast.success("Comment posted.");
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to post comment.");
     }
   }
 
@@ -193,48 +233,90 @@ function DecisionDetail() {
     if (!file) return;
     try {
       await uploadAttachment(id, file);
+      toast.success("File attached successfully.");
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to upload attachment.");
     }
   }
 
   async function handleDeleteDecision() {
-    if (!window.confirm("Delete this decision permanently? This cannot be undone.")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Delete Decision Permanently",
+      message: "Are you sure you want to delete this decision? All alternatives, attachments, and approvals will be removed permanently.",
+      confirmText: "Delete Decision",
+      isDanger: true,
+    });
+    if (!ok) return;
+
     try {
       await deleteDecision(id);
+      toast.success("Decision deleted successfully.");
       navigate("/decisions");
     } catch (err) {
       setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to delete decision.");
     }
   }
 
-async function handleDeleteComment(commentId) {
-  if (!window.confirm("Delete this comment?")) return;
-  try {
-    await deleteComment(commentId);
-    loadEverything();
-  } catch (err) {
-    setError(err.friendlyMessage);
-  }
-}
+  async function handleDeleteComment(commentId) {
+    const ok = await confirm({
+      title: "Delete Comment",
+      message: "Are you sure you want to remove this comment?",
+      confirmText: "Delete",
+      isDanger: true,
+    });
+    if (!ok) return;
 
-async function handleRestoreVersion(versionId, versionNumber) {
-  if (!window.confirm(`Restore this decision to version ${versionNumber}? Current content will be saved as a new version first.`)) {
-    return;
+    try {
+      await deleteComment(commentId);
+      toast.success("Comment deleted.");
+      loadEverything();
+    } catch (err) {
+      setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to delete comment.");
+    }
   }
-  try {
-    await restoreDecisionVersion(id, versionId);
-    loadEverything();
-  } catch (err) {
-    setError(err.friendlyMessage);
-  }
-}
 
-  if (!decision && !error) {
-    return <p style={{ padding: 40, color: "var(--line)" }}>Loading case file...</p>;
+  async function handleRestoreVersion(versionId, versionNumber) {
+    const ok = await confirm({
+      title: `Restore Version ${versionNumber}`,
+      message: `Restore this decision to version ${versionNumber}? The current content will be saved as a new version first.`,
+      confirmText: "Restore Version",
+      isDanger: false,
+    });
+    if (!ok) return;
+
+    try {
+      await restoreDecisionVersion(id, versionId);
+      toast.success(`Decision reverted to version ${versionNumber}.`);
+      loadEverything();
+    } catch (err) {
+      setError(err.friendlyMessage);
+      toast.error(err.friendlyMessage || "Failed to restore version.");
+    }
+  }
+
+  async function handleExportPDF() {
+    try {
+      await exportDecisionPDF(decision.id, decision.title);
+      toast.success("PDF document downloaded.");
+    } catch (err) {
+      toast.error("Failed to export PDF.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="decision-detail-page">
+        <AppHeader backTo="/decisions" backLabel="Back to Decisions" />
+        <div className="decision-detail-container">
+          <SkeletonLoader variant="card" count={1} />
+          <SkeletonLoader variant="list" count={3} />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -242,16 +324,16 @@ async function handleRestoreVersion(versionId, versionNumber) {
       <AppHeader backTo="/decisions" backLabel="Back to Decisions" />
 
       {error && (
-        <p className="form-error" style={{ textAlign: "center", padding: "12px 0", margin: 0 }}>
-          {error}
-        </p>
+        <div className="auth-error-banner" style={{ maxWidth: 860, margin: "20px auto 0" }}>
+          <p className="auth-error-banner__text">{error}</p>
+        </div>
       )}
 
       {decision && (
-        <div className="decision-detail-container">
+        <div className="decision-detail-container animate-fade-in">
 
           {/* ---- Main decision card (view or edit mode) ---- */}
-          <div className="record-card">
+          <div className="record-card decision-detail-card">
             <div className="decision-detail__top">
               <p className="record-card__eyebrow">File #{decision.id}</p>
               <StatusStamp value={decision.status} />
@@ -260,44 +342,55 @@ async function handleRestoreVersion(versionId, versionNumber) {
             {!isEditing ? (
               <>
                 <h1 className="record-card__title">{decision.title}</h1>
-                <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 10 }}>
-                  Created by <strong>{decision.creator_name}</strong>
-                </p>
-                <p className="decision-detail__problem">{decision.problem_statement}</p>
-                {canEdit && (
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button className="btn-ghost-light" onClick={() => setIsEditing(true)}>
-                    Edit Decision
-                  </button>
-                  <button className="btn-reject" onClick={handleDeleteDecision}>
-                    Delete Decision
+                <div className="decision-detail-author-line">
+                  <span>Authored by <strong>{decision.creator_name}</strong></span>
+                  {decision.created_at && (
+                    <span> &bull; Recorded on {new Date(decision.created_at).toLocaleDateString()}</span>
+                  )}
+                </div>
+                <div className="decision-detail__problem-wrapper">
+                  <h3 className="decision-detail__subheading">Problem Statement &amp; Context</h3>
+                  <p className="decision-detail__problem">{decision.problem_statement}</p>
+                </div>
+                
+                <div className="decision-detail-actions-row">
+                  {canEdit && (
+                    <>
+                      <button className="btn-ghost-light" onClick={() => setIsEditing(true)}>
+                        Edit Decision
+                      </button>
+                      <button className="btn-reject" onClick={handleDeleteDecision}>
+                        Delete Record
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="btn-ghost-light"
+                    onClick={handleExportPDF}
+                  >
+                    Export PDF
                   </button>
                 </div>
-              )}
-            <button
-            className="btn-ghost-light"
-            onClick={() => exportDecisionPDF(decision.id, decision.title)}
-            style={{ marginTop: 12, marginLeft: 8 }}
-          >
-            Export as PDF
-          </button>
               </>
             ) : (
-              <form onSubmit={handleEditSubmit}>
+              <form onSubmit={handleEditSubmit} className="decision-edit-form">
                 <div className="form-group">
-                  <label>Title</label>
+                  <label htmlFor="edit-title">Title</label>
                   <input
+                    id="edit-title"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Problem Statement</label>
+                  <label htmlFor="edit-problem">Problem Statement</label>
                   <textarea
+                    id="edit-problem"
                     value={editProblem}
                     onChange={(e) => setEditProblem(e.target.value)}
-                    rows={5}
+                    rows={6}
+                    required
                   />
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>
@@ -324,45 +417,53 @@ async function handleRestoreVersion(versionId, versionNumber) {
             )}
           </div>
 
+          {/* ---- Version History (Collapsible) ---- */}
           {versions.length > 0 && (
             <section className="detail-section">
-              <h2 className="detail-section__title">Version History</h2>
-              <div className="approval-timeline">
-                {versions.map((v) => (
-                  <div className="approval-entry" key={v.id}>
-                    <span className="record-field__label" style={{ flexShrink: 0 }}>
-                      v{v.version_number}
-                    </span>
-                    <div className="approval-entry__body">
-                      <p className="approval-entry__meta">
-                        <strong>{v.changed_by_name}</strong> ·{" "}
-                        {new Date(v.created_at).toLocaleString()}
-                      </p>
-                      <p className="approval-entry__comment">
-                        "{v.title}" — {v.status}
-                      </p>
-                      {canEdit && (
-                        <button
-                          className="attachment-remove-button"
-                          onClick={() => handleRestoreVersion(v.id, v.version_number)}
-                          style={{ marginTop: 4 }}
-                        >
-                          Restore this version
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="detail-section__header" style={{ marginBottom: showVersions ? 16 : 0, borderBottom: showVersions ? '1px solid var(--line)' : 'none' }}>
+                <h2 className="detail-section__title" style={{ border: "none", margin: 0, padding: 0 }}>
+                  Version History ({versions.length})
+                </h2>
+                <button className="btn-ghost-light" onClick={() => setShowVersions(!showVersions)}>
+                  {showVersions ? "Hide Versions ▲" : "Show Versions ▼"}
+                </button>
               </div>
+
+              {showVersions && (
+                <div className="approval-timeline">
+                  {versions.map((v) => (
+                    <div className="approval-entry" key={v.id}>
+                      <span className="version-badge">v{v.version_number}</span>
+                      <div className="approval-entry__body">
+                        <p className="approval-entry__meta">
+                          <strong>{v.changed_by_name}</strong> &bull; {new Date(v.created_at).toLocaleString()}
+                        </p>
+                        <p className="approval-entry__comment">
+                          &ldquo;{v.title}&rdquo; &bull; Status: {v.status}
+                        </p>
+                        {canEdit && (
+                          <button
+                            className="attachment-remove-button"
+                            onClick={() => handleRestoreVersion(v.id, v.version_number)}
+                            style={{ marginTop: 6, display: "inline-block" }}
+                          >
+                            Restore this version
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
           {/* ---- Approval History ---- */}
           <section className="detail-section">
-            <h2 className="detail-section__title">Approval History</h2>
+            <h2 className="detail-section__title">Approval Routing &amp; Governance</h2>
 
             {approvals.length === 0 && (
-              <p className="detail-section__empty">No reviews yet.</p>
+              <p className="detail-section__empty">No approval reviews recorded yet.</p>
             )}
 
             <div className="approval-timeline">
@@ -371,9 +472,9 @@ async function handleRestoreVersion(versionId, versionNumber) {
                   <StatusStamp value={a.outcome} />
                   <div className="approval-entry__body">
                     <p className="approval-entry__meta">
-                      <strong>{a.reviewer_name}</strong> · {new Date(a.reviewed_at).toLocaleString()}
+                      <strong>{a.reviewer_name}</strong> &bull; {new Date(a.reviewed_at).toLocaleString()}
                     </p>
-                    {a.comments && <p className="approval-entry__comment">{a.comments}</p>}
+                    {a.comments && <p className="approval-entry__comment">&ldquo;{a.comments}&rdquo;</p>}
                   </div>
                 </div>
               ))}
@@ -382,43 +483,40 @@ async function handleRestoreVersion(versionId, versionNumber) {
             {isMyTurn && (
               <div className="approval-action-box">
                 <p className="approval-action-box__prompt">
-                  This decision is awaiting your review as <strong>{currentUser.role}</strong>.
+                  Action required: Awaiting your approval review as <strong>{currentUser.role}</strong>.
                 </p>
                 <textarea
                   value={approvalComment}
                   onChange={(e) => setApprovalComment(e.target.value)}
-                  placeholder="Add a note about your decision (optional)..."
-                  rows={2}
+                  placeholder="Add a review note explaining your rationale (optional)..."
+                  rows={3}
                 />
                 <div className="approval-action-box__buttons">
                   <button className="btn-primary" onClick={() => handleApprovalAction("Approved")}>
-                    Approve
+                    Approve Decision
                   </button>
                   <button className="btn-reject" onClick={() => handleApprovalAction("Rejected")}>
-                    Reject
+                    Reject Decision
                   </button>
-                  {/* <button className="btn-ghost-light" onClick={() => handleApprovalAction("Escalated")}>
-                    Escalate
-                  </button> */}
                 </div>
               </div>
             )}
 
             {!isMyTurn && nextRole && (
-              <p className="detail-section__empty">
-                Awaiting review by: <strong>{nextRole}</strong>
+              <p className="detail-section__empty" style={{ marginTop: 16 }}>
+                Currently awaiting review step by: <strong>{nextRole}</strong>
               </p>
             )}
           </section>
 
           {/* ---- Rating ---- */}
           <section className="detail-section">
-            <h2 className="detail-section__title">Rating</h2>
+            <h2 className="detail-section__title">Impact &amp; Quality Rating</h2>
 
             <div className="rating-summary">
               <StarRating value={ratings.average} readOnly size="large" />
               <span className="rating-summary__text">
-                {ratings.average.toFixed(1)} out of 5
+                <strong>{ratings.average.toFixed(1)}</strong> / 5
                 {" "}({ratings.count} {ratings.count === 1 ? "rating" : "ratings"})
               </span>
             </div>
@@ -428,21 +526,21 @@ async function handleRestoreVersion(versionId, versionNumber) {
             )}
 
             {currentUser && decision.created_by === currentUser.id && (
-              <p className="detail-section__empty">
-                You created this decision, so you can't rate it yourself.
+              <p className="detail-section__empty" style={{ marginTop: 12 }}>
+                You are the author of this decision record, so rating is restricted.
               </p>
             )}
 
             {currentUser && decision.created_by !== currentUser.id && (
               ratings.my_rating ? (
-                <p style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-                  Your rating:
+                <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 13, color: "var(--text-dark)" }}>Your rating:</span>
                   <StarRating value={ratings.my_rating} readOnly />
-                </p>
+                </div>
               ) : (
-                <div style={{ marginTop: 10 }}>
-                  <p className="approval-action-box__prompt" style={{ marginBottom: 6 }}>
-                    Rate this decision — once submitted it can't be changed:
+                <div style={{ marginTop: 14 }}>
+                  <p className="approval-action-box__prompt" style={{ marginBottom: 8, fontSize: 13 }}>
+                    Rate this decision record:
                   </p>
                   <StarRating value={0} onRate={handleRate} size="large" />
                 </div>
@@ -454,69 +552,79 @@ async function handleRestoreVersion(versionId, versionNumber) {
           <section className="detail-section">
             <div className="detail-section__header">
               <h2 className="detail-section__title" style={{ border: "none", margin: 0, padding: 0 }}>
-                Alternatives Considered
+                Alternatives Considered ({alternatives.length})
               </h2>
-              <button className="btn-ghost-light" onClick={() => setShowAltForm(!showAltForm)}>
-                {showAltForm ? "Cancel" : "+ Add Alternative"}
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-ghost-light" onClick={() => setShowAlternatives(!showAlternatives)}>
+                  {showAlternatives ? "Collapse" : "Expand"}
+                </button>
+                <button className="btn-ghost-light" onClick={() => { setShowAltForm(!showAltForm); setShowAlternatives(true); }}>
+                  {showAltForm ? "Cancel" : "+ Add Alternative"}
+                </button>
+              </div>
             </div>
 
             {showAltForm && (
               <form onSubmit={handleAddAlternative} className="alt-form">
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: 16, margin: "0 0 14px" }}>New Alternative Option</h3>
                 <div className="form-group">
-                  <label>Title</label>
-                  <input value={altTitle} onChange={(e) => setAltTitle(e.target.value)} required />
+                  <label>Option Title</label>
+                  <input value={altTitle} onChange={(e) => setAltTitle(e.target.value)} placeholder="e.g., Option B: Managed Cloud Service" required />
                 </div>
                 <div className="form-group">
                   <label>Pros</label>
-                  <input value={altPros} onChange={(e) => setAltPros(e.target.value)} />
+                  <input value={altPros} onChange={(e) => setAltPros(e.target.value)} placeholder="Key advantages..." />
                 </div>
                 <div className="form-group">
                   <label>Cons</label>
-                  <input value={altCons} onChange={(e) => setAltCons(e.target.value)} />
+                  <input value={altCons} onChange={(e) => setAltCons(e.target.value)} placeholder="Trade-offs and limitations..." />
                 </div>
                 <div className="form-group">
                   <label>Estimated Cost</label>
-                  <input value={altCost} onChange={(e) => setAltCost(e.target.value)} />
+                  <input value={altCost} onChange={(e) => setAltCost(e.target.value)} placeholder="e.g., $5,000 / month" />
                 </div>
                 <div className="form-group">
                   <label>Feasibility Notes</label>
-                  <input value={altFeasibility} onChange={(e) => setAltFeasibility(e.target.value)} />
+                  <input value={altFeasibility} onChange={(e) => setAltFeasibility(e.target.value)} placeholder="Technical feasibility assessment..." />
                 </div>
                 <div className="form-group">
                   <label>Risk Notes</label>
-                  <input value={altRisk} onChange={(e) => setAltRisk(e.target.value)} />
+                  <input value={altRisk} onChange={(e) => setAltRisk(e.target.value)} placeholder="Identified operational risks..." />
                 </div>
                 <button type="submit" className="btn-primary" style={{ width: "auto", padding: "10px 24px" }}>
-                  Save Alternative
+                  Save Alternative Option
                 </button>
               </form>
             )}
 
-            {alternatives.length === 0 && !showAltForm && (
-              <p className="detail-section__empty">No alternatives recorded yet.</p>
-            )}
+            {showAlternatives && (
+              <>
+                {alternatives.length === 0 && !showAltForm && (
+                  <p className="detail-section__empty">No alternative options recorded yet.</p>
+                )}
 
-            <div className="alternatives-grid">
-              {alternatives.map((alt) => (
-                <div className="exhibit-card" key={alt.id}>
-                  <h3 className="exhibit-card__title">{alt.title}</h3>
-                  {alt.pros && <p><strong>Pros:</strong> {alt.pros}</p>}
-                  {alt.cons && <p><strong>Cons:</strong> {alt.cons}</p>}
-                  {alt.estimated_cost && <p><strong>Cost:</strong> {alt.estimated_cost}</p>}
-                  {alt.feasibility_notes && <p><strong>Feasibility:</strong> {alt.feasibility_notes}</p>}
-                  {alt.risk_notes && <p><strong>Risk:</strong> {alt.risk_notes}</p>}
+                <div className="alternatives-grid">
+                  {alternatives.map((alt) => (
+                    <div className="exhibit-card" key={alt.id}>
+                      <h3 className="exhibit-card__title">{alt.title}</h3>
+                      {alt.pros && <p><strong>Pros:</strong> {alt.pros}</p>}
+                      {alt.cons && <p><strong>Cons:</strong> {alt.cons}</p>}
+                      {alt.estimated_cost && <p><strong>Est. Cost:</strong> {alt.estimated_cost}</p>}
+                      {alt.feasibility_notes && <p><strong>Feasibility:</strong> {alt.feasibility_notes}</p>}
+                      {alt.risk_notes && <p><strong>Risks:</strong> {alt.risk_notes}</p>}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </section>
 
           {/* ---- Attachments ---- */}
           <section className="detail-section">
-            <h2 className="detail-section__title">Attachments</h2>
+            <h2 className="detail-section__title">Supporting Attachments</h2>
 
             {attachments.length === 0 && (
-              <p className="detail-section__empty">No files attached yet.</p>
+              <p className="detail-section__empty">No files attached to this case file yet.</p>
             )}
 
             <ul className="attachment-list">
@@ -526,7 +634,7 @@ async function handleRestoreVersion(versionId, versionNumber) {
                     className="attachment-link-button"
                     onClick={() => downloadAttachment(a.id, a.original_filename)}
                   >
-                    {a.original_filename}
+                    ⎘ {a.original_filename}
                   </button>
                   <button
                     className="attachment-remove-button"
@@ -539,54 +647,55 @@ async function handleRestoreVersion(versionId, versionNumber) {
               ))}
             </ul>
 
-            <label className="btn-ghost-light">
+            <label className="btn-ghost-light" style={{ cursor: "pointer" }}>
               + Attach File
               <input type="file" onChange={handleFileUpload} style={{ display: "none" }} />
             </label>
           </section>
 
-            {/* ---- Comments ---- */}
-            <section className="detail-section">
-              <h2 className="detail-section__title">Discussion</h2>
-              <div className="comment-thread">
-                {comments.length === 0 && (
-                  <p className="detail-section__empty">No comments yet — start the discussion.</p>
-                )}
-                {comments.map((c) => (
-                  <div className="comment" key={c.id}>
-                    <div className="comment__meta">
-                      <span className="comment__author">{c.author_name}</span>
-                      <span className="comment__date">
-                        {new Date(c.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="comment__content">{c.content}</p>
-                    {c.content !== "[deleted]" &&
-                      (c.author_id === currentUser?.id || currentUser?.role === "Administrator") && (
-                        <button
-                          className="attachment-remove-button"
-                          onClick={() => handleDeleteComment(c.id)}
-                          title="Delete comment"
-                        >
-                          Delete
-                        </button>
-                      )}
+          {/* ---- Comments ---- */}
+          <section className="detail-section">
+            <h2 className="detail-section__title">Discussion &amp; Notes</h2>
+            <div className="comment-thread">
+              {comments.length === 0 && (
+                <p className="detail-section__empty">No comments yet — start the discussion.</p>
+              )}
+              {comments.map((c) => (
+                <div className="comment" key={c.id}>
+                  <div className="comment__meta">
+                    <span className="comment__author">{c.author_name}</span>
+                    <span className="comment__date">
+                      {new Date(c.created_at).toLocaleString()}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <p className="comment__content">{c.content}</p>
+                  {c.content !== "[deleted]" &&
+                    (c.author_id === currentUser?.id || currentUser?.role === "Administrator") && (
+                      <button
+                        className="attachment-remove-button"
+                        onClick={() => handleDeleteComment(c.id)}
+                        title="Delete comment"
+                        style={{ marginTop: 4, display: "inline-block" }}
+                      >
+                        Delete comment
+                      </button>
+                    )}
+                </div>
+              ))}
+            </div>
 
-              <form onSubmit={handleCommentSubmit} className="comment-form">
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Add a comment..."
-                  rows={3}
-                />
-                <button type="submit" className="btn-primary" style={{ width: "auto", padding: "10px 24px" }}>
-                  Post
-                </button>
-              </form>
-            </section>
+            <form onSubmit={handleCommentSubmit} className="comment-form">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Write a comment or decision rationale note..."
+                rows={3}
+              />
+              <button type="submit" className="btn-primary" style={{ width: "auto", padding: "10px 24px" }} disabled={!newComment.trim()}>
+                Post Comment
+              </button>
+            </form>
+          </section>
         </div>
       )}
     </div>

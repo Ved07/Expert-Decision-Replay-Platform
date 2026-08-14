@@ -14,6 +14,7 @@ from routers import (
     comments,
     approvals,
     admin,
+    copilot,
 )
 
 app = FastAPI(title="Expert Decision Replay Platform API")
@@ -21,7 +22,7 @@ app = FastAPI(title="Expert Decision Replay Platform API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173",
-                   "https://expert-decision-replay-platform-frontend.onrender.com",
+                   "https://edrp-frontend.onrender.com",
                    ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -52,3 +53,5 @@ app.include_router(admin.router)
 app.include_router(audit.router)
 app.include_router(notifications.router)
 app.include_router(ratings.router)
+app.include_router(copilot.router)
+

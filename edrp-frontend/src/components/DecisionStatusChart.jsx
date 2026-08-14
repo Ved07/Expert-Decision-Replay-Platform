@@ -6,26 +6,29 @@ const STATUS_COLORS = {
   Approved: "#3f6b4a",
   Rejected: "#a3352b",
   Archived: "#8a8378",
+  Escalated: "#d97706",
 };
 
 function DecisionStatusChart({ statusData }) {
   // Convert { "Approved": 2, "Draft": 1 } into [{ name: "Approved", value: 2 }, ...]
-  const chartData = Object.entries(statusData).map(([name, value]) => ({ name, value }));
+  const chartData = Object.entries(statusData || {}).map(([name, value]) => ({ name, value }));
 
   if (chartData.length === 0) {
     return <p className="detail-section__empty">No decision data to chart yet.</p>;
   }
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={220}>
       <PieChart>
         <Pie
           data={chartData}
           dataKey="value"
           nameKey="name"
           cx="50%"
-          cy="50%"
-          outerRadius={90}
+          cy="45%"
+          outerRadius={70}
+          innerRadius={30}
+          paddingAngle={3}
           label={({ name, value }) => `${name}: ${value}`}
         >
           {chartData.map((entry) => (
@@ -34,14 +37,17 @@ function DecisionStatusChart({ statusData }) {
         </Pie>
         <Tooltip
           contentStyle={{
-            background: "var(--paper)",
-            border: "1px solid var(--line)",
-            fontFamily: "var(--font-body)",
-            fontSize: 13,
+            background: "#f6f1e7",
+            border: "1px solid #c9bfa8",
+            borderRadius: "4px",
+            fontFamily: "Inter, sans-serif",
+            fontSize: 12,
+            color: "#2b2621",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
           }}
         />
         <Legend
-          wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: 11 }}
+          wrapperStyle={{ fontFamily: "IBM Plex Mono", fontSize: 11, color: "#6b6355" }}
         />
       </PieChart>
     </ResponsiveContainer>
@@ -49,4 +55,3 @@ function DecisionStatusChart({ statusData }) {
 }
 
 export default DecisionStatusChart;
-

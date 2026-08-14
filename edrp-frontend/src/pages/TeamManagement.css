@@ -1,15 +1,31 @@
-.form-group select {
-  width: 100%;
-  padding: 11px 12px;
-  font-family: var(--font-body);
-  font-size: 15px;
-  color: var(--text-dark);
-  background: #fffdf9;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  outline: none;
+.team-member-card {
+  cursor: default;
 }
 
-.mini-decision-card {
-  gap: 12px;
+.team-member-card:hover {
+  transform: none;
+}
+
+.team-member-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--brass-light);
+  border: 1px solid var(--brass);
+  color: var(--brass);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.team-admin-controls {
+  background: var(--paper-dark);
+  border: 1px solid var(--line);
+  padding: 18px 20px;
+  border-radius: var(--radius-xs);
+  margin-bottom: 20px;
 }

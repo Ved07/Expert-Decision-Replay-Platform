@@ -7,7 +7,7 @@ from models import User, Decision, DecisionStatus, Approval, ApprovalDecision
 from schemas import ApprovalCreate, ApprovalOut
 from helpers import create_decision_version, get_next_required_role, APPROVAL_LEVELS
 from helpers import log_action
-from helpers import notify
+from helpers import notify, notify_relevant_users, send_email
 
 router = APIRouter(prefix="/decisions", tags=["Approvals"])
 
@@ -58,10 +58,12 @@ def review_decision(
         else:
             decision.status = DecisionStatus.UNDER_REVIEW
 
-    notify(
+    notify_relevant_users(
         db,
-        user_id=decision.created_by,
-        message=f"Your decision '{decision.title}' was {payload.outcome.value.lower()} by a {current_user.role}.",
+        decision=decision,
+        event_type="decision_" + payload.outcome.value.lower(),
+        actor_id=current_user.id,
+        details=f"Decision '{decision.title}' was {payload.outcome.value.lower()} by {current_user.role}.",
         link=f"/decisions/{decision.id}",
     )
 
@@ -87,6 +89,50 @@ def review_decision(
     )   
     db.commit()
     db.refresh(new_approval)
+
+    # ---- Email notifications (all fire in background threads) ----
+
+    # 1. Email the decision creator about the outcome
+    from models import User as _User
+    creator = db.query(_User).filter(_User.id == decision.created_by).first()
+    if creator:
+        outcome_word = payload.outcome.value.capitalize()
+        send_email(
+            to_email=creator.email,
+            subject=f"[EDRP] Your decision '{decision.title}' was {outcome_word}",
+            body=(
+                f"Hi {creator.name},\n\n"
+                f"Your decision has been reviewed.\n\n"
+                f"Title: {decision.title}\n"
+                f"Outcome: {outcome_word}\n"
+                f"Reviewed by: {current_user.name} ({current_user.role})\n"
+                + (f"Comments: {new_approval.comments}\n" if new_approval.comments else "")
+                + f"\nCurrent status: {decision.status.value}\n\n"
+                "Log in to the EDRP platform to view the full approval history.\n\n"
+                "Best regards,\n"
+                "The EDRP Team"
+            ),
+        )
+
+    # 2. If still under review, email the next level's reviewers
+    if decision.status == DecisionStatus.UNDER_REVIEW:
+        next_role_after_commit = get_next_required_role(decision_id, db)
+        if next_role_after_commit:
+            next_reviewers = db.query(_User).filter(_User.role == next_role_after_commit).all()
+            for reviewer in next_reviewers:
+                send_email(
+                    to_email=reviewer.email,
+                    subject=f"[EDRP] Decision awaiting your review: {decision.title}",
+                    body=(
+                        f"Hi {reviewer.name},\n\n"
+                        f"A decision has passed the previous review stage and now requires "
+                        f"your review as {next_role_after_commit}.\n\n"
+                        f"Title: {decision.title}\n\n"
+                        "Please log in to the EDRP platform to review this decision.\n\n"
+                        "Best regards,\n"
+                        "The EDRP Team"
+                    ),
+                )
 
     return ApprovalOut(
         id=new_approval.id,

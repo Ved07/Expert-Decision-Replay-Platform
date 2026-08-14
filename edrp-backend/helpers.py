@@ -1,6 +1,56 @@
+import os
+import smtplib
+import threading
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from sqlalchemy.orm import Session
 
+# ---------------------------------------------------------------------------
+# SMTP Email helper
+# ---------------------------------------------------------------------------
+
+def send_email(to_email: str, subject: str, body: str) -> None:
+    """
+    Send a plain-text email via SMTP in a background thread.
+
+    Reads credentials from env vars set in .env:
+      SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM
+
+    Deliberately never raises — if the send fails the error is printed to
+    the server log and the API call continues normally.
+    """
+    def _send():
+        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USERNAME", "")
+        smtp_pass = os.getenv("SMTP_PASSWORD", "")
+        smtp_from = os.getenv("SMTP_FROM", smtp_user)
+
+        if not smtp_user or not smtp_pass or smtp_pass == "your-16-char-gmail-app-password":
+            # Not configured yet — skip silently
+            return
+
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"EDRP Platform <{smtp_from}>"
+            msg["To"] = to_email
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_from, [to_email], msg.as_string())
+        except Exception as exc:
+            # Log but never raise — email failure must not affect the API
+            print(f"[SMTP] Failed to send email to {to_email}: {exc}")
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
 APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"]
+
 
 
 def get_next_required_role(decision_id: int, db: Session) -> str | None:
@@ -117,3 +167,47 @@ def create_decision_version(db, decision, changed_by_id: int):
         changed_by=changed_by_id,
     )
     db.add(snapshot)
+
+def notify_relevant_users(db: Session, decision, event_type: str, actor_id: int, details: str, link: str | None = None):
+    """
+    Dispatches notifications to all relevant users based on their role and relationship to the decision.
+    Visibility rules:
+    - Admin -> all events
+    - Reviewer -> decisions pending review + approvals/rejections
+    - Employer -> all decisions related to their organization (Manager of creator's team)
+    - Employee -> decisions they created
+    """
+    from models import User, Team
+
+    creator = db.query(User).filter(User.id == decision.created_by).first()
+    manager_id = None
+    if creator and creator.team_id:
+        team = db.query(Team).filter(Team.id == creator.team_id).first()
+        if team:
+            manager_id = team.manager_id
+
+    # Gather all users
+    all_users = db.query(User).all()
+    
+    notified_user_ids = set()
+
+    for u in all_users:
+        if u.id == actor_id:
+            continue  # Don't notify the person who took the action
+        
+        should_notify = False
+
+        if u.role == "Administrator":
+            should_notify = True
+        elif u.role == "Manager" and u.id == manager_id:
+            should_notify = True
+        elif u.id == decision.created_by:
+            should_notify = True
+        elif u.role == "Reviewer":
+            # Reviewers care about creation (needs review) and approvals/rejections
+            if event_type in ("decision_created", "decision_approved", "decision_rejected", "decision_status_changed"):
+                should_notify = True
+
+        if should_notify and u.id not in notified_user_ids:
+            notify(db, u.id, details, link)
+            notified_user_ids.add(u.id)

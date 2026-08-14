@@ -1,0 +1,115 @@
+.skeleton-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Shimmer base ── */
+.skeleton-line,
+.skeleton-card,
+.skeleton-badge,
+.skeleton-list-item,
+.skeleton-row {
+  background: linear-gradient(
+    90deg,
+    var(--paper-dark) 25%,
+    var(--paper-mid) 50%,
+    var(--paper-dark) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-xs);
+}
+
+/* ── Line variants ── */
+.skeleton-line {
+  height: 14px;
+  border-radius: var(--radius-xs);
+}
+
+.skeleton-line--short { width: 30%; }
+.skeleton-line--med   { width: 55%; }
+.skeleton-line--long  { width: 90%; }
+
+/* ── Card skeleton ── */
+.skeleton-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: none; /* card itself doesn't shimmer — inner lines do */
+}
+
+.skeleton-card .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    var(--paper-dark) 25%,
+    var(--paper-mid) 50%,
+    var(--paper-dark) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── List item skeleton ── */
+.skeleton-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--paper-dark);
+  border: 1px solid var(--line);
+  animation: none;
+}
+
+.skeleton-list-item .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    var(--line) 25%,
+    var(--paper-dark) 50%,
+    var(--line) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Row skeleton (table rows) ── */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  animation: none;
+}
+
+.skeleton-row .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    var(--paper-dark) 25%,
+    var(--paper-mid) 50%,
+    var(--paper-dark) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Badge skeleton ── */
+.skeleton-badge {
+  width: 80px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+/* ── Page loading wrapper ── */
+.skeleton-page {
+  padding: 48px 24px;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}

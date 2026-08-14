@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from auth import hash_password, verify_password, create_access_token, get_db
 from models import User
 from schemas import UserCreate
+from helpers import send_email
 
 router = APIRouter(tags=["Authentication"])
 
@@ -28,6 +29,22 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Welcome email — fires in background, never blocks the response
+    send_email(
+        to_email=new_user.email,
+        subject="Welcome to EDRP — Expert Decision Replay Platform",
+        body=(
+            f"Hi {new_user.name},\n\n"
+            "Welcome to the Expert Decision Replay Platform (EDRP)!\n\n"
+            "Your account has been successfully created. You can now log in and start "
+            "recording, reviewing, and replaying decisions with your team.\n\n"
+            "If you have any questions, please reach out to your administrator.\n\n"
+            "Best regards,\n"
+            "The EDRP Team"
+        ),
+    )
+
     return new_user
 
 @router.post(

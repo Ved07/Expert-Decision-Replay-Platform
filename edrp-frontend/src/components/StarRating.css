@@ -1,14 +1,20 @@
 .star-rating {
   display: inline-flex;
-  gap: 2px;
+  gap: 4px;
+  align-items: center;
 }
 
 .star {
   font-size: 20px;
   color: var(--line);
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: transform var(--transition-fast), color var(--transition-fast);
   user-select: none;
+  line-height: 1;
+}
+
+.star:hover:not(.star-rating--readonly .star) {
+  transform: scale(1.25);
 }
 
 .star-rating--readonly .star {
@@ -17,6 +23,7 @@
 
 .star--filled {
   color: var(--brass);
+  text-shadow: 0 0 6px rgba(176, 141, 87, 0.4);
 }
 
 .star-rating--small .star {
@@ -24,5 +31,5 @@
 }
 
 .star-rating--large .star {
-  font-size: 26px;
+  font-size: 24px;
 }
