@@ -7,8 +7,8 @@ COPY package*.json .
 RUN npm install
 
 COPY . .
-RUN npm run build
-ENV VITE_API_URL=$VITE_API_URL
+
+ENV VITE_API_URL=https://expert-decision-replay-platform-backend.onrender.com
 
 # Stage 2: serve those static files with a lightweight web server
 FROM nginx:alpine
