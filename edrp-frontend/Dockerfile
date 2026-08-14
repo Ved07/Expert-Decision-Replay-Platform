@@ -8,6 +8,7 @@ RUN npm install
 
 COPY . .
 RUN npm run build
+ENV VITE_API_URL=$VITE_API_URL
 
 # Stage 2: serve those static files with a lightweight web server
 FROM nginx:alpine
