@@ -170,4 +170,4 @@ characters in the password automatically.
 
 ## Author
 
-Vedansh Mudgal — Infosys Springboard Virtual Internship 7.0
+Vedansh Mudgal

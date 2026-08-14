@@ -43,6 +43,18 @@
   border-bottom: 1px solid var(--line);
 }
 
+.rating-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rating-summary__text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .detail-section__empty {
   font-size: 14px;
   color: var(--text-muted);

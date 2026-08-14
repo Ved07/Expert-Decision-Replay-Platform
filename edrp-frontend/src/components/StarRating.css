@@ -1,0 +1,28 @@
+.star-rating {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.star {
+  font-size: 20px;
+  color: var(--line);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  user-select: none;
+}
+
+.star-rating--readonly .star {
+  cursor: default;
+}
+
+.star--filled {
+  color: var(--brass);
+}
+
+.star-rating--small .star {
+  font-size: 15px;
+}
+
+.star-rating--large .star {
+  font-size: 26px;
+}

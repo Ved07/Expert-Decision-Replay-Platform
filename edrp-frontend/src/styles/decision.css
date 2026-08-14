@@ -1,0 +1,233 @@
+/* ===========================
+   Decision Module
+=========================== */
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-header h2 {
+  margin: 0;
+  color: #1f2937;
+}
+
+.primary-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: 0.3s;
+}
+
+.primary-btn:hover {
+  background: #1d4ed8;
+}
+
+/* ===========================
+   Table
+=========================== */
+
+.table-container {
+  background: white;
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.decision-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.decision-table th {
+  background: #f3f4f6;
+  text-align: left;
+  padding: 14px;
+}
+
+.decision-table td {
+  padding: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ===========================
+   Buttons
+=========================== */
+
+.view-btn,
+.edit-btn,
+.delete-btn {
+  border: none;
+  padding: 8px 14px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+}
+
+.view-btn {
+  background: #2563eb;
+}
+
+.edit-btn {
+  background: #10b981;
+}
+
+.delete-btn {
+  background: #ef4444;
+}
+
+.view-btn:hover {
+  background: #1d4ed8;
+}
+
+.edit-btn:hover {
+  background: #059669;
+}
+
+.delete-btn:hover {
+  background: #dc2626;
+}
+
+/* ===========================
+   Form
+=========================== */
+
+.decision-form {
+  background: white;
+  padding: 24px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  max-width: 800px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.form-group textarea {
+  resize: vertical;
+}
+
+/* ===========================
+   Card
+=========================== */
+
+.decision-card {
+  background: white;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.decision-card h3 {
+  margin-bottom: 10px;
+}
+
+.card-actions {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+.mobile-view {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  .desktop-view {
+    display: none;
+  }
+
+  .mobile-view {
+    display: block;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .view-btn,
+  .edit-btn,
+  .delete-btn,
+  .primary-btn {
+    width: 100%;
+  }
+
+}
+/* Tabs */
+
+.decision-tabs{
+    display:flex;
+    gap:10px;
+    margin:20px 0;
+    flex-wrap:wrap;
+}
+
+.tab{
+    padding:10px 18px;
+    border:none;
+    background:#e5e7eb;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.active-tab{
+    background:#2563eb;
+    color:white;
+}
+
+/* Details */
+
+.details-card{
+    background:white;
+    padding:24px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.details-card h3{
+    margin-bottom:20px;
+}
+
+.details-card p{
+    margin-bottom:15px;
+}

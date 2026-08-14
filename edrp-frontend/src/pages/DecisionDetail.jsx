@@ -6,13 +6,15 @@ import {
   createAlternative, deleteAttachment,
   getApprovals, submitApproval, getCurrentUser,
   updateDecision, getDecisionVersions,
+  getRatings, rateDecision,
 } from "../services/api";
 import StatusStamp from "../components/StatusStamp";
 import AppHeader from "../components/AppHeader";
+import StarRating from "../components/StarRating";
 import "./DecisionDetail.css";
 import { exportDecisionPDF } from "../services/api";
 import { deleteDecision } from "../services/api";
-import { deleteComment } from "../services/api";
+import { deleteComment, restoreDecisionVersion  } from "../services/api";
 
 
 const APPROVAL_LEVELS = ["Reviewer", "Manager", "Administrator"];
@@ -38,6 +40,12 @@ function DecisionDetail() {
   const [currentUser, setCurrentUser] = useState(null);
   const [error, setError] = useState("");
 
+  // Ratings
+  // Ratings
+  const [ratings, setRatings] = useState({ average: 0, count: 0, my_rating: null });
+  const [ratingError, setRatingError] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
+  
   // Editing + version history
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -46,7 +54,7 @@ function DecisionDetail() {
 
   async function loadEverything() {
     try {
-      const [decisionData, altData, attachData, commentData, approvalData, userData, versionData] =
+      const [decisionData, altData, attachData, commentData, approvalData, userData, versionData, ratingData] =
         await Promise.all([
           getDecision(id),
           getAlternatives(id),
@@ -55,6 +63,7 @@ function DecisionDetail() {
           getApprovals(id),
           getCurrentUser(),
           getDecisionVersions(id),
+          getRatings(id),
         ]);
       setDecision(decisionData);
       setEditTitle(decisionData.title);
@@ -65,6 +74,7 @@ function DecisionDetail() {
       setApprovals(approvalData);
       setCurrentUser(userData);
       setVersions(versionData);
+      setRatings(ratingData);
       setError("");
     } catch (err) {
       setError(err.friendlyMessage);
@@ -96,6 +106,29 @@ function DecisionDetail() {
       loadEverything();
     } catch (err) {
       setError(err.friendlyMessage);
+    }
+  }
+
+  async function handleRate(stars) {
+    // Already rated, or a click is already in flight — ignore extra clicks.
+    if (ratings.my_rating || submittingRating) return;
+
+    setSubmittingRating(true);
+    setRatingError("");
+
+    // Optimistically lock the stars immediately so a second click
+    // can't fire a second request while we wait for the server.
+    setRatings((prev) => ({ ...prev, my_rating: stars }));
+
+    try {
+      const summary = await rateDecision(id, stars);
+      setRatings(summary);
+    } catch (err) {
+      // Server rejected it — unlock so the error is visible and honest.
+      setRatings((prev) => ({ ...prev, my_rating: null }));
+      setRatingError(err.friendlyMessage);
+    } finally {
+      setSubmittingRating(false);
     }
   }
 
@@ -182,6 +215,18 @@ async function handleDeleteComment(commentId) {
   if (!window.confirm("Delete this comment?")) return;
   try {
     await deleteComment(commentId);
+    loadEverything();
+  } catch (err) {
+    setError(err.friendlyMessage);
+  }
+}
+
+async function handleRestoreVersion(versionId, versionNumber) {
+  if (!window.confirm(`Restore this decision to version ${versionNumber}? Current content will be saved as a new version first.`)) {
+    return;
+  }
+  try {
+    await restoreDecisionVersion(id, versionId);
     loadEverything();
   } catch (err) {
     setError(err.friendlyMessage);
@@ -279,7 +324,6 @@ async function handleDeleteComment(commentId) {
             )}
           </div>
 
-          {/* ---- Version History ---- */}
           {versions.length > 0 && (
             <section className="detail-section">
               <h2 className="detail-section__title">Version History</h2>
@@ -297,6 +341,15 @@ async function handleDeleteComment(commentId) {
                       <p className="approval-entry__comment">
                         "{v.title}" — {v.status}
                       </p>
+                      {canEdit && (
+                        <button
+                          className="attachment-remove-button"
+                          onClick={() => handleRestoreVersion(v.id, v.version_number)}
+                          style={{ marginTop: 4 }}
+                        >
+                          Restore this version
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -344,9 +397,9 @@ async function handleDeleteComment(commentId) {
                   <button className="btn-reject" onClick={() => handleApprovalAction("Rejected")}>
                     Reject
                   </button>
-                  <button className="btn-ghost-light" onClick={() => handleApprovalAction("Escalated")}>
+                  {/* <button className="btn-ghost-light" onClick={() => handleApprovalAction("Escalated")}>
                     Escalate
-                  </button>
+                  </button> */}
                 </div>
               </div>
             )}
@@ -355,6 +408,45 @@ async function handleDeleteComment(commentId) {
               <p className="detail-section__empty">
                 Awaiting review by: <strong>{nextRole}</strong>
               </p>
+            )}
+          </section>
+
+          {/* ---- Rating ---- */}
+          <section className="detail-section">
+            <h2 className="detail-section__title">Rating</h2>
+
+            <div className="rating-summary">
+              <StarRating value={ratings.average} readOnly size="large" />
+              <span className="rating-summary__text">
+                {ratings.average.toFixed(1)} out of 5
+                {" "}({ratings.count} {ratings.count === 1 ? "rating" : "ratings"})
+              </span>
+            </div>
+
+            {ratingError && (
+              <p className="form-error" style={{ marginTop: 8 }}>{ratingError}</p>
+            )}
+
+            {currentUser && decision.created_by === currentUser.id && (
+              <p className="detail-section__empty">
+                You created this decision, so you can't rate it yourself.
+              </p>
+            )}
+
+            {currentUser && decision.created_by !== currentUser.id && (
+              ratings.my_rating ? (
+                <p style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                  Your rating:
+                  <StarRating value={ratings.my_rating} readOnly />
+                </p>
+              ) : (
+                <div style={{ marginTop: 10 }}>
+                  <p className="approval-action-box__prompt" style={{ marginBottom: 6 }}>
+                    Rate this decision — once submitted it can't be changed:
+                  </p>
+                  <StarRating value={0} onRate={handleRate} size="large" />
+                </div>
+              )
             )}
           </section>
 

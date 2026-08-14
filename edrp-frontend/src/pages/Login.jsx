@@ -26,7 +26,7 @@ function Login() {
     <AuthCard
       title="Sign in to your file"
       footer={
-        <>Don't have an account? <Link to="/register">Register</Link></>
+        <>Don't have an account? <Link to="/register">Register</Link> </>
       }
     >
       <form onSubmit={handleSubmit}>
