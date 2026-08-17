@@ -118,6 +118,23 @@ def generate_context_suggestions(context: Optional[Dict[str, Any]] = None) -> Li
     return DEFAULT_SUGGESTIONS
 
 
+DEFAULT_MODELS = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "groq/compound",
+    "groq/compound-mini",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+]
+
+
+def get_models_to_try() -> List[str]:
+    custom_model = os.getenv("GROQ_MODEL") or os.getenv("AI_MODEL")
+    if custom_model and custom_model.strip():
+        return [custom_model.strip()] + [m for m in DEFAULT_MODELS if m != custom_model.strip()]
+    return list(DEFAULT_MODELS)
+
+
 @router.post("/chat", response_model=CopilotQueryResponse)
 def handle_copilot_chat(request: CopilotQueryRequest):
     """
@@ -143,13 +160,7 @@ def handle_copilot_chat(request: CopilotQueryRequest):
 
     groq_key = groq_key.strip()
     system_prompt = build_system_prompt(request.context)
-
-    models_to_try = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-8b-instant",
-        "mixtral-8x7b-32768",
-        "gemma2-9b-it"
-    ]
+    models_to_try = get_models_to_try()
 
     reply_text = None
     last_error = None
@@ -183,9 +194,11 @@ def handle_copilot_chat(request: CopilotQueryRequest):
         except urllib.error.HTTPError as http_err:
             try:
                 err_body = http_err.read().decode("utf-8")
+                err_json = json.loads(err_body)
+                last_error = err_json.get("error", {}).get("message", err_body[:150])
             except Exception:
-                err_body = str(http_err)
-            last_error = f"HTTP {http_err.code}: {err_body[:150]}"
+                last_error = f"HTTP {http_err.code}: {str(http_err)}"
+            continue
         except Exception as err:
             last_error = str(err)
             continue
@@ -234,13 +247,7 @@ def handle_copilot_stream(request: CopilotQueryRequest):
     system_prompt = build_system_prompt(request.context)
 
     def event_stream_generator():
-        models_to_try = [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-            "gemma2-9b-it"
-        ]
-
+        models_to_try = get_models_to_try()
         stream_started = False
         last_error = None
 
@@ -285,6 +292,16 @@ def handle_copilot_stream(request: CopilotQueryRequest):
                         except json.JSONDecodeError:
                             continue
                     break  # Successfully completed streaming
+            except urllib.error.HTTPError as http_err:
+                try:
+                    err_body = http_err.read().decode("utf-8")
+                    err_json = json.loads(err_body)
+                    last_error = err_json.get("error", {}).get("message", err_body[:150])
+                except Exception:
+                    last_error = f"HTTP {http_err.code}: {str(http_err)}"
+                if stream_started:
+                    break
+                continue
             except Exception as e:
                 last_error = str(e)
                 if stream_started:
