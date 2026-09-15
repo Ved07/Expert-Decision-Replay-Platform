@@ -1,4 +1,4 @@
-# Expert Decision Replay Platform (EDRP)
+# Expert-Decision-Replay-Platform-Group-2
 
 A full-stack platform for recording organizational decisions — the problem, the alternatives
 considered, who reviewed and approved it, and the final outcome — so teams can learn from past
