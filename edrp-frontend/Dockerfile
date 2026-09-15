@@ -7,6 +7,11 @@ COPY package*.json .
 RUN npm install
 
 COPY . .
+
+# IMPORTANT: this line is required for the deployed build to reach the correct backend.
+# If it's ever missing, the frontend silently falls back to 127.0.0.1 and breaks in production.
+ENV VITE_API_URL=https://expert-decision-replay-platform-backend.onrender.com
+
 RUN npm run build
 
 # Stage 2: serve those static files with a lightweight web server
