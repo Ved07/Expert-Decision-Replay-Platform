@@ -7,8 +7,6 @@
   height: 64px;
   border-radius: 50%;
   background: #ffffff;
-  border: 2px solid #2563eb;
-  box-shadow: 0 6px 22px rgba(37, 99, 235, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -22,9 +20,7 @@
 
 .copilot-floating-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.6);
   border-color: #3b82f6;
-  background: #f8fafc;
 }
 
 .copilot-floating-btn:active {
@@ -117,7 +113,6 @@
   font-size: 12px;
 }
 
-
 /* Slide-over Backdrop */
 .copilot-backdrop {
   position: fixed;
@@ -142,9 +137,9 @@
 .copilot-drawer {
   position: fixed;
   top: 0;
-  right: -420px;
-  width: 400px;
-  max-width: 90vw;
+  right: -460px;
+  width: 440px;
+  max-width: 92vw;
   height: 100vh;
   background: #0f172a;
   color: #f8fafc;
@@ -295,7 +290,7 @@
 .copilot-msg {
   display: flex;
   gap: 10px;
-  max-width: 88%;
+  max-width: 92%;
 }
 
 .copilot-msg--user {
@@ -327,7 +322,7 @@
 .copilot-msg__bubble {
   background: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 12px;
   font-size: 13px;
   line-height: 1.5;
@@ -344,6 +339,7 @@
 
 .copilot-msg--assistant .copilot-msg__bubble {
   border-bottom-left-radius: 2px;
+  width: 100%;
 }
 
 .copilot-msg__status-badge {
@@ -357,6 +353,240 @@
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
   margin-bottom: 6px;
+}
+
+/* User Attached Files in Chat Bubbles */
+.copilot-msg__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.copilot-msg__image-wrapper {
+  position: relative;
+  width: 110px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.copilot-msg__image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.copilot-msg__image-wrapper:hover .copilot-msg__image-preview {
+  transform: scale(1.05);
+}
+
+.copilot-msg__image-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.copilot-msg__image-wrapper:hover .copilot-msg__image-overlay {
+  opacity: 1;
+}
+
+.copilot-msg__file-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  color: #f1f5f9;
+}
+
+.copilot-msg__file-icon {
+  font-size: 14px;
+}
+
+.copilot-msg__file-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.copilot-msg__file-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.copilot-msg__file-size {
+  font-size: 9px;
+  color: #cbd5e1;
+}
+
+/* ========================================================= */
+/* Rich Markdown Response Styling (Eliminates raw symbols) */
+/* ========================================================= */
+.copilot-markdown {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+
+.copilot-markdown p {
+  margin: 0 0 10px 0;
+}
+
+.copilot-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.copilot-markdown-h1,
+.copilot-markdown-h2,
+.copilot-markdown-h3,
+.copilot-markdown-h4 {
+  color: #f8fafc;
+  font-weight: 700;
+  margin: 14px 0 8px 0;
+  line-height: 1.3;
+}
+
+.copilot-markdown-h1 {
+  font-size: 16px;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+  padding-bottom: 4px;
+}
+
+.copilot-markdown-h2 {
+  font-size: 15px;
+  color: #60a5fa;
+}
+
+.copilot-markdown-h3 {
+  font-size: 13.5px;
+  color: #93c5fd;
+}
+
+.copilot-markdown-h4 {
+  font-size: 12.5px;
+  color: #cbd5e1;
+}
+
+.copilot-markdown-strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Sleek Markdown Lists */
+.copilot-markdown-ul,
+.copilot-markdown-ol {
+  margin: 6px 0 12px 0;
+  padding-left: 20px;
+}
+
+.copilot-markdown-li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+.copilot-markdown-li strong {
+  color: #ffffff;
+}
+
+.copilot-markdown-li:last-child {
+  margin-bottom: 0;
+}
+
+/* Sleek Markdown Tables */
+.copilot-table-container {
+  overflow-x: auto;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.copilot-markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.copilot-markdown-th {
+  background: #1e293b;
+  color: #60a5fa;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+}
+
+.copilot-markdown-td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  vertical-align: top;
+}
+
+.copilot-markdown-table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.copilot-markdown-table tr:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Blockquotes / Callout Tips */
+.copilot-markdown-blockquote {
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+  border-radius: 0 6px 6px 0;
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+/* Code */
+.copilot-markdown-inline-code {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #38bdf8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.copilot-markdown-pre {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.copilot-markdown-block-code {
+  color: #a5f3fc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.4;
 }
 
 /* Loading State */
@@ -375,8 +605,84 @@
   animation: copilotBounce 1.4s infinite ease-in-out both;
 }
 
-.copilot-loading-dot:nth-child(1) { animation-delay: -0.32s; }
-.copilot-loading-dot:nth-child(2) { animation-delay: -0.16s; }
+.copilot-loading-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.copilot-loading-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+/* Attached Files Previews (Above input bar) */
+.copilot-attachment-previews {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.copilot-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0f172a;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 8px;
+  padding: 4px 8px;
+  flex-shrink: 0;
+  max-width: 180px;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.copilot-attachment-chip__thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.copilot-attachment-chip__icon {
+  font-size: 16px;
+}
+
+.copilot-attachment-chip__details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.copilot-attachment-chip__name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copilot-attachment-chip__size {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.copilot-attachment-chip__remove {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.copilot-attachment-chip__remove:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
 
 /* Footer / Input */
 .copilot-footer {
@@ -391,10 +697,11 @@
 .copilot-input-wrapper {
   display: flex;
   align-items: center;
+  gap: 4px;
   background: #0f172a;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
-  padding: 4px 8px 4px 12px;
+  padding: 4px 6px 4px 8px;
   transition: border-color 0.2s;
 }
 
@@ -410,12 +717,39 @@
   outline: none;
   color: #ffffff;
   font-size: 13px;
-  padding: 8px 0;
+  padding: 8px 4px;
   resize: none;
+  min-width: 0;
 }
 
 .copilot-input::placeholder {
   color: #64748b;
+}
+
+/* File Attachment Button */
+.copilot-attach-btn {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.copilot-attach-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.copilot-attach-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .copilot-send-btn {
@@ -445,12 +779,12 @@
 
 /* Microphone Voice Input Button */
 .copilot-mic-btn {
-  background: rgba(30, 41, 59, 0.8);
+  background: transparent;
   color: #94a3b8;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  border: none;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -460,20 +794,19 @@
 }
 
 .copilot-mic-btn:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;
-  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .copilot-mic-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .copilot-mic-btn--listening {
   background: #ef4444 !important;
   color: #ffffff !important;
-  border-color: #f87171 !important;
+  border-radius: 8px;
   animation: copilotMicPulse 1.4s infinite ease-in-out;
 }
 
@@ -482,10 +815,12 @@
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
   }
+
   70% {
     transform: scale(1.05);
     box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
   }
+
   100% {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
@@ -580,8 +915,15 @@
 }
 
 @keyframes copilotCursorBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
 }
 
 /* Stop Streaming Button */
@@ -604,14 +946,144 @@
   color: #ffffff;
 }
 
+/* Drag and drop overlay */
+.copilot-dropzone-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+}
+
+.copilot-dropzone-box {
+  border: 2px dashed #3b82f6;
+  background: rgba(30, 58, 138, 0.2);
+  border-radius: 16px;
+  width: 100%;
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.copilot-dropzone-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  animation: copilotBounce 1.4s infinite ease-in-out;
+}
+
+.copilot-dropzone-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.copilot-dropzone-desc {
+  font-size: 12px;
+  color: #93c5fd;
+  max-width: 260px;
+}
+
+/* Enlarged Image Lightbox Modal */
+.copilot-image-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.copilot-image-modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 85vh;
+  background: #0f172a;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.copilot-image-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.15s;
+}
+
+.copilot-image-modal-close:hover {
+  background: #ef4444;
+}
+
+.copilot-image-modal-img {
+  max-width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  background: #020617;
+}
+
+.copilot-image-modal-footer {
+  padding: 10px 16px;
+  background: #1e293b;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 @keyframes copilotSparkle {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.15); opacity: 0.85; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
 }
 
 @keyframes copilotBounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+
+  40% {
+    transform: scale(1);
+  }
 }
 
 /* Responsive adjustments */

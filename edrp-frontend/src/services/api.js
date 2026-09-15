@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 // Create a dedicated axios instance instead of using the default one directly.
 // This lets us attach interceptors that only apply to OUR backend calls.
@@ -323,12 +323,12 @@ export async function restoreDecisionVersion(decisionId, versionId) {
 }
 
 // --- EDRP Copilot AI Assistant ---
-export async function sendCopilotQuery(message, context = null) {
-  const response = await apiClient.post("/copilot/chat", { message, context });
+export async function sendCopilotQuery(message, context = null, files = []) {
+  const response = await apiClient.post("/copilot/chat", { message, context, files });
   return response.data;
 }
 
-export async function streamCopilotQuery(message, context, { onToken, onSuggestions, onError, onDone, signal } = {}) {
+export async function streamCopilotQuery(message, context, { files = [], onToken, onSuggestions, onError, onDone, signal } = {}) {
   try {
     const token = localStorage.getItem("access_token");
     const headers = {
@@ -341,7 +341,7 @@ export async function streamCopilotQuery(message, context, { onToken, onSuggesti
     const response = await fetch(`${API_BASE_URL}/copilot/stream`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify({ message, context, files }),
       signal,
     });
 

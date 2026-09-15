@@ -1,8 +1,38 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { streamCopilotQuery, getCurrentUser } from "../../services/api";
 import { useToast } from "../../context/ToastContext";
 import "./CopilotDrawer.css";
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
+
+function getFileCategory(file) {
+  const type = file.type || "";
+  const name = (file.name || "").toLowerCase();
+  if (type.startsWith("image/") || name.match(/\.(png|jpe?g|webp|gif|svg|bmp)$/)) {
+    return "image";
+  }
+  if (type.includes("pdf") || name.endsWith(".pdf")) {
+    return "pdf";
+  }
+  if (
+    type.includes("sheet") ||
+    type.includes("excel") ||
+    type.includes("csv") ||
+    name.match(/\.(xlsx|xls|csv)$/)
+  ) {
+    return "spreadsheet";
+  }
+  return "document";
+}
 
 function CopilotDrawer({ externalOpen, onToggle }) {
   const location = useLocation();
@@ -16,6 +46,12 @@ function CopilotDrawer({ externalOpen, onToggle }) {
   const [activeContext, setActiveContext] = useState(null);
   const [dynamicSuggestions, setDynamicSuggestions] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+
+  // File Upload State
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [previewModalImage, setPreviewModalImage] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Microphone Voice Input State
   const [isListening, setIsListening] = useState(false);
@@ -246,6 +282,10 @@ function CopilotDrawer({ externalOpen, onToggle }) {
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape" && isOpen) {
+        if (previewModalImage) {
+          setPreviewModalImage(null);
+          return;
+        }
         setIsOpen(false);
         if (onToggle) onToggle(false);
       }
@@ -257,7 +297,7 @@ function CopilotDrawer({ externalOpen, onToggle }) {
       window.removeEventListener("open-copilot-drawer", handleOpen);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onToggle]);
+  }, [isOpen, onToggle, previewModalImage]);
 
   // Scroll to bottom on message updates or streaming chunks
   useEffect(() => {
@@ -273,6 +313,80 @@ function CopilotDrawer({ externalOpen, onToggle }) {
     }
     setIsOpen(false);
     if (onToggle) onToggle(false);
+  };
+
+  /**
+   * Process and attach files (Images, Excel, PDF, Text)
+   */
+  const processFiles = (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+
+    const filesArray = Array.from(fileList);
+    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB limit
+
+    filesArray.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`File '${file.name}' is too large (max 15MB).`);
+        return;
+      }
+
+      const reader = new FileReader();
+      const category = getFileCategory(file);
+
+      reader.onload = (e) => {
+        const base64Data = e.target.result;
+        const newFile = {
+          id: Date.now() + Math.random().toString(36).substring(2, 7),
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          size: file.size,
+          category,
+          data: base64Data,
+          previewUrl: category === "image" ? base64Data : null,
+        };
+
+        setAttachedFiles((prev) => [...prev, newFile]);
+      };
+
+      reader.onerror = () => {
+        toast.error(`Failed to read file: ${file.name}`);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileInputChange = (e) => {
+    processFiles(e.target.files);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFile = (fileId) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
+  // Drag & drop handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    if (e.dataTransfer && e.dataTransfer.files) {
+      processFiles(e.dataTransfer.files);
+    }
   };
 
   /**
@@ -294,12 +408,15 @@ function CopilotDrawer({ externalOpen, onToggle }) {
         "\n\n";
     }
 
-    return `${historyBlock}User question: ${query}`;
+    return `${historyBlock}User question: ${query || "Analyze the uploaded file(s)."}`;
   };
 
   const handleSend = async (textToSend) => {
-    const query = textToSend || inputMsg;
-    if (!query.trim() || loading || isStreaming) return;
+    const query = textToSend !== undefined ? textToSend : inputMsg;
+    const currentAttachedFiles = [...attachedFiles];
+
+    if (!query.trim() && currentAttachedFiles.length === 0) return;
+    if (loading || isStreaming) return;
 
     if (isListening && recognitionRef.current) {
       try {
@@ -308,7 +425,13 @@ function CopilotDrawer({ externalOpen, onToggle }) {
       setIsListening(false);
     }
 
-    const userMessage = { id: Date.now(), sender: "user", text: query };
+    const userMessage = {
+      id: Date.now(),
+      sender: "user",
+      text: query,
+      files: currentAttachedFiles,
+    };
+
     const assistantMessageId = Date.now() + 1;
     const initialAssistantMessage = {
       id: assistantMessageId,
@@ -319,6 +442,7 @@ function CopilotDrawer({ externalOpen, onToggle }) {
 
     setMessages((prev) => [...prev, userMessage, initialAssistantMessage]);
     setInputMsg("");
+    setAttachedFiles([]);
     setLoading(true);
     setIsStreaming(true);
 
@@ -330,7 +454,16 @@ function CopilotDrawer({ externalOpen, onToggle }) {
 
     let accumulatedText = "";
 
+    // Prepare files payload for backend
+    const filesPayload = currentAttachedFiles.map((f) => ({
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      data: f.data,
+    }));
+
     await streamCopilotQuery(fullPrompt, activeContext, {
+      files: filesPayload,
       signal: controller.signal,
       onToken: (token) => {
         setLoading(false);
@@ -352,7 +485,11 @@ function CopilotDrawer({ externalOpen, onToggle }) {
         setLoading(false);
         setIsStreaming(false);
         const isRateLimit = errText && errText.toLowerCase().includes("rate limit");
-        toast.error(isRateLimit ? "Copilot rate limit reached. Please wait a moment." : "Copilot is unavailable. Please try again.");
+        toast.error(
+          isRateLimit
+            ? "Copilot rate limit reached. Please wait a moment."
+            : "Copilot is unavailable. Please try again."
+        );
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId
@@ -380,7 +517,7 @@ function CopilotDrawer({ externalOpen, onToggle }) {
         if (accumulatedText.trim()) {
           setConversationHistory((prev) => [
             ...prev,
-            { role: "user", content: query },
+            { role: "user", content: query || "Uploaded attachments" },
             { role: "assistant", content: accumulatedText.trim() },
           ]);
         }
@@ -417,8 +554,23 @@ function CopilotDrawer({ externalOpen, onToggle }) {
     }
     setMessages([]);
     setConversationHistory([]);
+    setAttachedFiles([]);
     if (activeContext?.defaultSuggs) {
       setDynamicSuggestions(activeContext.defaultSuggs);
+    }
+  };
+
+  // Helper icon for file categories
+  const renderFileCategoryIcon = (category) => {
+    switch (category) {
+      case "image":
+        return "🖼️";
+      case "spreadsheet":
+        return "📊";
+      case "pdf":
+        return "📄";
+      default:
+        return "📎";
     }
   };
 
@@ -430,8 +582,57 @@ function CopilotDrawer({ externalOpen, onToggle }) {
         onClick={handleClose}
       />
 
+      {/* Enlarged Image Lightbox Modal */}
+      {previewModalImage && (
+        <div
+          className="copilot-image-modal-backdrop"
+          onClick={() => setPreviewModalImage(null)}
+        >
+          <div
+            className="copilot-image-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="copilot-image-modal-close"
+              onClick={() => setPreviewModalImage(null)}
+              title="Close Preview"
+              type="button"
+            >
+              ✕
+            </button>
+            <img
+              src={previewModalImage.previewUrl || previewModalImage.data}
+              alt={previewModalImage.name || "Preview"}
+              className="copilot-image-modal-img"
+            />
+            <div className="copilot-image-modal-footer">
+              <span>{previewModalImage.name}</span>
+              <span>{formatFileSize(previewModalImage.size)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Drawer */}
-      <div className={`copilot-drawer ${isOpen ? "copilot-drawer--open" : ""}`}>
+      <div
+        className={`copilot-drawer ${isOpen ? "copilot-drawer--open" : ""}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drag and drop overlay banner */}
+        {isDraggingOver && (
+          <div className="copilot-dropzone-overlay">
+            <div className="copilot-dropzone-box">
+              <div className="copilot-dropzone-icon">📁</div>
+              <div className="copilot-dropzone-title">Drop Files Here</div>
+              <div className="copilot-dropzone-desc">
+                Attach Images, Spreadsheets (Excel/CSV), PDFs, or Documents
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="copilot-header">
           <div className="copilot-header__left">
@@ -508,8 +709,8 @@ function CopilotDrawer({ externalOpen, onToggle }) {
               </div>
               <div className="copilot-empty-state__desc">
                 {activeContext?.decisionTitle
-                  ? `I'm tuned to this decision. Ask about review outcomes, alternatives, criteria, or replays.`
-                  : `Ask questions about decision replays, pending reviews, approvals, team workflows, or platform features.`}
+                  ? `I'm tuned to this decision. Ask about review outcomes, alternatives, criteria, or replays. You can also attach PDFs, Excel sheets, and images for instant AI analysis.`
+                  : `Ask questions about decision replays, pending reviews, approvals, team workflows, or upload images, spreadsheets, and PDFs for instant insights.`}
               </div>
               <div className="copilot-suggestions">
                 {dynamicSuggestions.map((suggestion, index) => (
@@ -563,17 +764,120 @@ function CopilotDrawer({ externalOpen, onToggle }) {
                       Error
                     </div>
                   )}
-                  <div style={{ whiteSpace: "pre-wrap" }}>
-                    {msg.text}
-                    {msg.isStreaming && !msg.text && (
-                      <span className="copilot-loading-dots">
-                        <span className="copilot-loading-dot" />
-                        <span className="copilot-loading-dot" />
-                        <span className="copilot-loading-dot" />
-                      </span>
-                    )}
-                    {msg.isStreaming && msg.text && (
-                      <span className="copilot-streaming-cursor" />
+
+                  {/* Render attachments in user message */}
+                  {msg.files && msg.files.length > 0 && (
+                    <div className="copilot-msg__attachments">
+                      {msg.files.map((file, idx) => (
+                        <div key={idx} className="copilot-msg__attachment-item">
+                          {file.category === "image" && file.previewUrl ? (
+                            <div
+                              className="copilot-msg__image-wrapper"
+                              onClick={() => setPreviewModalImage(file)}
+                              title="Click to expand image"
+                            >
+                              <img
+                                src={file.previewUrl}
+                                alt={file.name}
+                                className="copilot-msg__image-preview"
+                              />
+                              <div className="copilot-msg__image-overlay">
+                                <span>🔍 View</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="copilot-msg__file-pill">
+                              <span className="copilot-msg__file-icon">
+                                {renderFileCategoryIcon(file.category)}
+                              </span>
+                              <div className="copilot-msg__file-info">
+                                <span className="copilot-msg__file-name" title={file.name}>
+                                  {file.name}
+                                </span>
+                                <span className="copilot-msg__file-size">
+                                  {formatFileSize(file.size)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Message Content: Clean Markdown Rendering for Assistant, Text for User */}
+                  <div className="copilot-msg__content">
+                    {msg.sender === "assistant" ? (
+                      <div className="copilot-markdown">
+                        {msg.text ? (
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              table: ({ node, ...props }) => (
+                                <div className="copilot-table-container">
+                                  <table className="copilot-markdown-table" {...props} />
+                                </div>
+                              ),
+                              th: ({ node, ...props }) => (
+                                <th className="copilot-markdown-th" {...props} />
+                              ),
+                              td: ({ node, ...props }) => (
+                                <td className="copilot-markdown-td" {...props} />
+                              ),
+                              h1: ({ node, ...props }) => (
+                                <h1 className="copilot-markdown-h1" {...props} />
+                              ),
+                              h2: ({ node, ...props }) => (
+                                <h2 className="copilot-markdown-h2" {...props} />
+                              ),
+                              h3: ({ node, ...props }) => (
+                                <h3 className="copilot-markdown-h3" {...props} />
+                              ),
+                              h4: ({ node, ...props }) => (
+                                <h4 className="copilot-markdown-h4" {...props} />
+                              ),
+                              ul: ({ node, ...props }) => (
+                                <ul className="copilot-markdown-ul" {...props} />
+                              ),
+                              ol: ({ node, ...props }) => (
+                                <ol className="copilot-markdown-ol" {...props} />
+                              ),
+                              li: ({ node, ...props }) => (
+                                <li className="copilot-markdown-li" {...props} />
+                              ),
+                              strong: ({ node, ...props }) => (
+                                <strong className="copilot-markdown-strong" {...props} />
+                              ),
+                              blockquote: ({ node, ...props }) => (
+                                <blockquote className="copilot-markdown-blockquote" {...props} />
+                              ),
+                              code: ({ node, inline, ...props }) =>
+                                inline ? (
+                                  <code className="copilot-markdown-inline-code" {...props} />
+                                ) : (
+                                  <pre className="copilot-markdown-pre">
+                                    <code className="copilot-markdown-block-code" {...props} />
+                                  </pre>
+                                ),
+                            }}
+                          >
+                            {msg.text}
+                          </ReactMarkdown>
+                        ) : null}
+
+                        {msg.isStreaming && !msg.text && (
+                          <span className="copilot-loading-dots">
+                            <span className="copilot-loading-dot" />
+                            <span className="copilot-loading-dot" />
+                            <span className="copilot-loading-dot" />
+                          </span>
+                        )}
+                        {msg.isStreaming && msg.text && (
+                          <span className="copilot-streaming-cursor" />
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ whiteSpace: "pre-wrap" }}>{msg.text}</div>
                     )}
                   </div>
                 </div>
@@ -619,12 +923,75 @@ function CopilotDrawer({ externalOpen, onToggle }) {
             </div>
           )}
 
+          {/* Attached Files Preview Bar */}
+          {attachedFiles.length > 0 && (
+            <div className="copilot-attachment-previews">
+              {attachedFiles.map((file) => (
+                <div key={file.id} className="copilot-attachment-chip">
+                  {file.category === "image" && file.previewUrl ? (
+                    <img
+                      src={file.previewUrl}
+                      alt={file.name}
+                      className="copilot-attachment-chip__thumb"
+                    />
+                  ) : (
+                    <span className="copilot-attachment-chip__icon">
+                      {renderFileCategoryIcon(file.category)}
+                    </span>
+                  )}
+                  <div className="copilot-attachment-chip__details">
+                    <span className="copilot-attachment-chip__name" title={file.name}>
+                      {file.name}
+                    </span>
+                    <span className="copilot-attachment-chip__size">
+                      {formatFileSize(file.size)}
+                    </span>
+                  </div>
+                  <button
+                    className="copilot-attachment-chip__remove"
+                    onClick={() => handleRemoveFile(file.id)}
+                    type="button"
+                    title="Remove file"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Hidden File Input */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileInputChange}
+            multiple
+            accept="image/*,.pdf,.xlsx,.xls,.csv,.txt,.json,.md,.doc,.docx"
+            style={{ display: "none" }}
+          />
+
           <div className="copilot-input-wrapper">
+            {/* Attach File Button */}
+            <button
+              className="copilot-attach-btn"
+              onClick={() => fileInputRef.current && fileInputRef.current.click()}
+              disabled={isStreaming}
+              title="Upload images, Excel spreadsheets, PDFs, or documents"
+              type="button"
+              aria-label="Upload files or images"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            </button>
+
             <input
               className="copilot-input"
               placeholder={
                 isListening
                   ? "Listening... Speak your question now"
+                  : attachedFiles.length > 0
+                  ? "Ask about the attached files..."
                   : activeContext?.decisionTitle
                   ? `Ask Copilot about '${activeContext.decisionTitle.slice(0, 24)}...'`
                   : "Ask Copilot a question..."
@@ -662,7 +1029,7 @@ function CopilotDrawer({ externalOpen, onToggle }) {
             <button
               className="copilot-send-btn"
               onClick={() => handleSend()}
-              disabled={!inputMsg.trim() || isStreaming}
+              disabled={(!inputMsg.trim() && attachedFiles.length === 0) || isStreaming}
               title="Send Message"
               type="button"
             >
@@ -677,7 +1044,7 @@ function CopilotDrawer({ externalOpen, onToggle }) {
                 Listening... click mic to stop
               </span>
             ) : (
-              <span>Press Enter or click mic to speak</span>
+              <span>📎 Upload Images, PDFs, Excel • Press Enter to send</span>
             )}
             {messages.length > 0 && (
               <button

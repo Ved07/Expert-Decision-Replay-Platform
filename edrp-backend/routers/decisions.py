@@ -14,7 +14,14 @@ from openpyxl import Workbook
 from auth import get_db, get_current_user
 from models import User, Decision, DecisionStatus, Alternative, Approval, DecisionVersion
 from schemas import DecisionCreate, DecisionUpdate, DecisionOut, DecisionVersionOut
-from helpers import get_next_required_role, log_action, create_decision_version, notify_relevant_users, send_email
+from helpers import (
+    get_next_required_role,
+    log_action,
+    create_decision_version,
+    notify_relevant_users,
+    send_email,
+    dispatch_decision_event,
+)
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -63,32 +70,16 @@ def create_decision(
         entity_id=new_decision.id,
         details=new_decision.title,
     )
-    notify_relevant_users(
+
+    # Multi-role notification and email dispatch (Employee confirmation, Reviewer call to action, Manager alert)
+    dispatch_decision_event(
         db,
         decision=new_decision,
         event_type="decision_created",
-        actor_id=current_user.id,
-        details=f"New decision '{new_decision.title}' was created.",
-        link=f"/decisions/{new_decision.id}"
+        actor=current_user,
     )
-    db.commit()
 
-    # Email all Reviewers about the new pending decision
-    reviewers = db.query(User).filter(User.role == "Reviewer").all()
-    for reviewer in reviewers:
-        send_email(
-            to_email=reviewer.email,
-            subject=f"[EDRP] New decision pending your review: {new_decision.title}",
-            body=(
-                f"Hi {reviewer.name},\n\n"
-                f"A new decision has been submitted and requires your review.\n\n"
-                f"Title: {new_decision.title}\n"
-                f"Submitted by: {current_user.name}\n\n"
-                f"Please log in to the EDRP platform to review this decision.\n\n"
-                "Best regards,\n"
-                "The EDRP Team"
-            ),
-        )
+    db.commit()
 
     return attach_creator_name(new_decision, db)
 

@@ -7,6 +7,7 @@ import json
 import urllib.request
 import urllib.error
 from dotenv import load_dotenv
+from copilot_parser import process_attached_files
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ router = APIRouter(prefix="/copilot", tags=["copilot"])
 class CopilotQueryRequest(BaseModel):
     message: str
     context: Optional[Dict[str, Any]] = None
+    files: Optional[List[Dict[str, Any]]] = None
 
 class CopilotQueryResponse(BaseModel):
     status: str
@@ -22,10 +24,16 @@ class CopilotQueryResponse(BaseModel):
     suggestions: List[str] = []
 
 SYSTEM_INSTRUCTION = (
-    "You are EDRP Copilot, an intelligent AI assistant for the Expert Decision Replay Platform. "
-    "Your role is to help users navigate and understand the platform, including recording decisions, "
-    "decision replays, alternatives, team workflows, approvals, and reports. "
-    "Provide clear, concise, accurate, and professional responses."
+    "You are EDRP Copilot, the intelligent real-time AI assistant for the Expert Decision Replay Platform. "
+    "Your mission is to assist managers, reviewers, and team members in recording decisions, conducting decision replays, "
+    "evaluating alternatives, managing approval workflows, analyzing attachments/data, and reviewing platform audit logs.\n\n"
+    "FORMATTING & TONE GUIDELINES:\n"
+    "- Provide clear, beautifully structured, accurate, and professional answers.\n"
+    "- Format key points using clean bullet points and bold headers.\n"
+    "- When presenting multi-step instructions, use ordered numbered steps or well-organized tables.\n"
+    "- If the user uploads attachments (Excel, CSV, PDF, Images, or Text), thoroughly analyze the extracted content, "
+    "highlight key metrics/findings, and provide actionable recommendations.\n"
+    "- Keep explanations concise and avoid repetitive formatting or unnecessary symbols."
 )
 
 DEFAULT_SUGGESTIONS = [
@@ -36,39 +44,43 @@ DEFAULT_SUGGESTIONS = [
 ]
 
 
-def build_system_prompt(context: Optional[Dict[str, Any]] = None) -> str:
-    """Inject current application and user context into the system prompt."""
+def build_system_prompt(context: Optional[Dict[str, Any]] = None, files: Optional[List[Dict[str, Any]]] = None) -> str:
+    """Inject current application context, user context, and parsed file data into the system prompt."""
     prompt = SYSTEM_INSTRUCTION
-    if not context:
-        return prompt
+    if context:
+        ctx_lines = []
+        if context.get("currentPath"):
+            ctx_lines.append(f"- Active Page Route: {context['currentPath']}")
+        if context.get("pageTitle"):
+            ctx_lines.append(f"- Active Page: {context['pageTitle']}")
+        if context.get("decisionId"):
+            ctx_lines.append(f"- Active Decision ID: {context['decisionId']}")
+        if context.get("decisionTitle"):
+            ctx_lines.append(f"- Active Decision Title: '{context['decisionTitle']}'")
+        if context.get("decisionStatus"):
+            ctx_lines.append(f"- Active Decision Status: {context['decisionStatus']}")
+        if context.get("decisionCategory"):
+            ctx_lines.append(f"- Active Decision Category: {context['decisionCategory']}")
+        if context.get("decisionDescription"):
+            summary = str(context["decisionDescription"])[:250]
+            ctx_lines.append(f"- Active Decision Summary: {summary}")
+        if context.get("userRole"):
+            ctx_lines.append(f"- Current User Role: {context['userRole']}")
+        if context.get("userName"):
+            ctx_lines.append(f"- Current User Name: {context['userName']}")
 
-    ctx_lines = []
-    if context.get("currentPath"):
-        ctx_lines.append(f"- Active Page Route: {context['currentPath']}")
-    if context.get("pageTitle"):
-        ctx_lines.append(f"- Active Page: {context['pageTitle']}")
-    if context.get("decisionId"):
-        ctx_lines.append(f"- Active Decision ID: {context['decisionId']}")
-    if context.get("decisionTitle"):
-        ctx_lines.append(f"- Active Decision Title: '{context['decisionTitle']}'")
-    if context.get("decisionStatus"):
-        ctx_lines.append(f"- Active Decision Status: {context['decisionStatus']}")
-    if context.get("decisionCategory"):
-        ctx_lines.append(f"- Active Decision Category: {context['decisionCategory']}")
-    if context.get("decisionDescription"):
-        summary = str(context["decisionDescription"])[:250]
-        ctx_lines.append(f"- Active Decision Summary: {summary}")
-    if context.get("userRole"):
-        ctx_lines.append(f"- Current User Role: {context['userRole']}")
-    if context.get("userName"):
-        ctx_lines.append(f"- Current User Name: {context['userName']}")
+        if ctx_lines:
+            prompt += (
+                "\n\nCURRENT APPLICATION & USER CONTEXT:\n"
+                + "\n".join(ctx_lines)
+                + "\nUtilize this context whenever the user refers to 'this decision', 'my team', 'this page', etc."
+            )
 
-    if ctx_lines:
-        prompt += (
-            "\n\nCURRENT APPLICATION & USER CONTEXT:\n"
-            + "\n".join(ctx_lines)
-            + "\nAlways utilize this active context to tailor your responses when the user refers to 'this decision', 'my role', 'this page', etc."
-        )
+    if files:
+        files_context = process_attached_files(files)
+        if files_context:
+            prompt += files_context
+
     return prompt
 
 
@@ -138,14 +150,17 @@ def get_models_to_try() -> List[str]:
 @router.post("/chat", response_model=CopilotQueryResponse)
 def handle_copilot_chat(request: CopilotQueryRequest):
     """
-    Copilot AI Assistant endpoint integrated with Groq API (non-streaming with context).
+    Copilot AI Assistant endpoint integrated with Groq API (non-streaming with context & file attachments).
     """
     user_msg = request.message.strip()
     if not user_msg:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Message content cannot be empty."
-        )
+        if request.files and len(request.files) > 0:
+            user_msg = "Please analyze the attached file(s), extract key details, summarize the data/findings, and provide actionable recommendations."
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Message content or file attachment cannot be empty."
+            )
 
     load_dotenv(override=True)
     groq_key = os.getenv("GROQ_API_KEY") or os.getenv("GROK_API_KEY")
@@ -159,7 +174,7 @@ def handle_copilot_chat(request: CopilotQueryRequest):
         )
 
     groq_key = groq_key.strip()
-    system_prompt = build_system_prompt(request.context)
+    system_prompt = build_system_prompt(request.context, request.files)
     models_to_try = get_models_to_try()
 
     reply_text = None
@@ -224,15 +239,18 @@ def handle_copilot_chat(request: CopilotQueryRequest):
 @router.post("/stream")
 def handle_copilot_stream(request: CopilotQueryRequest):
     """
-    Real-time Server-Sent Events (SSE) streaming endpoint for Copilot Assistant.
+    Real-time Server-Sent Events (SSE) streaming endpoint for Copilot Assistant with file attachments.
     Streams individual AI response tokens directly to the frontend.
     """
     user_msg = request.message.strip()
     if not user_msg:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Message content cannot be empty."
-        )
+        if request.files and len(request.files) > 0:
+            user_msg = "Please analyze the attached file(s), extract key details, summarize the data/findings, and provide actionable recommendations."
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Message content or file attachment cannot be empty."
+            )
 
     load_dotenv(override=True)
     groq_key = os.getenv("GROQ_API_KEY") or os.getenv("GROK_API_KEY")
@@ -244,7 +262,7 @@ def handle_copilot_stream(request: CopilotQueryRequest):
         return StreamingResponse(unconfigured_stream(), media_type="text/event-stream")
 
     groq_key = groq_key.strip()
-    system_prompt = build_system_prompt(request.context)
+    system_prompt = build_system_prompt(request.context, request.files)
 
     def event_stream_generator():
         models_to_try = get_models_to_try()

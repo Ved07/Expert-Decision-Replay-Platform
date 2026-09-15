@@ -21,9 +21,7 @@ app = FastAPI(title="Expert Decision Replay Platform API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173",
-                   "https://expert-decision-replay-platform-frontend.onrender.com",
-                   ],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

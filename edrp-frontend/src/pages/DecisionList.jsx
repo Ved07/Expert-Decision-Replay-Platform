@@ -46,7 +46,7 @@ function DecisionList() {
             <Link to="/decisions/new" className="new-decision-btn">
               + New Decision
             </Link>
-            <button className="btn-ghost-light" onClick={exportDecisionsExcel} title="Export all decisions to Excel">
+            <button className="btn-ghost-light-export" onClick={exportDecisionsExcel} title="Export all decisions to Excel">
               Export Excel
             </button>
           </div>

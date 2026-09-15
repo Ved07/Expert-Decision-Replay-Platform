@@ -20,17 +20,16 @@ function DecisionStatusChart({ statusData }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="45%"
-          outerRadius={70}
-          innerRadius={30}
-          paddingAngle={3}
-          label={({ name, value }) => `${name}: ${value}`}
-        >
+          <Pie
+            data={chartData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={70}
+            innerRadius={45}
+            paddingAngle={3}
+          >
           {chartData.map((entry) => (
             <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || "#999"} />
           ))}
